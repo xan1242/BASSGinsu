@@ -24,9 +24,6 @@
 // - Redline & idle re-pitch -- done? Maybe this was referring to re-pitching based on the RPM...
 // - LPF based on throttle -- maybe implement BASSfx for this? or use the dx8 effect? -- done? not quite LPF but using a param EQ
 // - Decel amount based on throttle -- basically, the xfade will depend on how hard the throttle is pushed -- done by tracking the rate?
-// - Separate decel/accel xfade ratios/ranges -- DONE
-// - Transmission whine on reverse -- DONE
-// - Transmission whine for gearboxes that go forward too -- DONE
 // - Maybe some control for clutch release and LPF for it too
 // - DOCUMENTATION IN GENERAL!
 // 
