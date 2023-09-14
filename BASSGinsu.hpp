@@ -101,6 +101,7 @@ private:
     HSAMPLE* hsv;
     DWORD* chans;
     HSTREAM gStream;
+    bool bFloatBuffer;
     
     // Playback stuff
     DWORD chan;
@@ -491,15 +492,19 @@ private:
     }
 
 public:
-    bool Load(std::filesystem::path ginPath)
+    bool Load(std::filesystem::path ginPath, bool bIsFloatBuffer)
     {
+        bFloatBuffer = bIsFloatBuffer;
+
         // TODO: error handling
         if (!ParseGinsu(ginPath))
             return false;
         if (!CreateChannels(ginPath))
             return false;
-
-        gStream = BASS_Mixer_StreamCreate(GinsuHead.sampleRate, 1, BASS_MIXER_NONSTOP | BASS_MIXER_NOSPEAKER | BASS_STREAM_DECODE);
+        DWORD gStreamFlags = BASS_MIXER_NONSTOP | BASS_MIXER_NOSPEAKER | BASS_STREAM_DECODE;
+        if (bFloatBuffer)
+            gStreamFlags |= BASS_SAMPLE_FLOAT;
+        gStream = BASS_Mixer_StreamCreate(GinsuHead.sampleRate, 1, gStreamFlags);
         if (gStream == NULL)
             return false;
         
@@ -567,7 +572,7 @@ public:
         return gStream;
     }
 
-    DWORD GetData(int16_t* outBuffer, DWORD length)
+    DWORD GetData(void* outBuffer, DWORD length)
     {
         if (!bLoaded)
             return 0;
@@ -703,6 +708,7 @@ public:
         freqDelta = 0.0f;
         freqCurrent = -1.0f;
         bLoaded = false;
+        bFloatBuffer = false;
     }
     ~BASSGinsuStream()
     {
@@ -739,6 +745,7 @@ public:
 
 private:
     HSTREAM gStream;
+    bool bFloatBuffer;
 
     HSAMPLE hsIdle;
     HSAMPLE hsRedline;
@@ -861,13 +868,13 @@ private:
 
     bool bLoaded;
 
-    BASSGinsuStream* CreateStream(std::filesystem::path ginPath)
+    BASSGinsuStream* CreateStream(std::filesystem::path ginPath, bool bIsFloatBuffer)
     {
         BASSGinsuStream* stream = new BASSGinsuStream();
         if (stream == nullptr)
             return nullptr;
 
-        if (!stream->Load(ginPath))
+        if (!stream->Load(ginPath, bIsFloatBuffer))
         {
             delete stream;
             return nullptr;
@@ -1248,17 +1255,18 @@ private:
 public:
     // Loads the sounds and creates the streams.
     // Should only be called from BASSGinsuPlayer
-    bool Load(DWORD freq, std::filesystem::path accelGinPath, std::filesystem::path decelGinPath, std::filesystem::path redlinePath, std::filesystem::path idlePath, std::filesystem::path reverseWhinePath, std::filesystem::path forwardWhinePath, std::filesystem::path idleWhinePath)
+    bool Load(DWORD freq, std::filesystem::path accelGinPath, std::filesystem::path decelGinPath, std::filesystem::path redlinePath, std::filesystem::path idlePath, std::filesystem::path reverseWhinePath, std::filesystem::path forwardWhinePath, std::filesystem::path idleWhinePath, bool bIsFloatBuffer)
     {
         sampleRate = freq;
+        bFloatBuffer = bIsFloatBuffer;
 
-        accelStream = CreateStream(accelGinPath);
+        accelStream = CreateStream(accelGinPath, bIsFloatBuffer);
         if (accelStream == nullptr)
             return false;
 
         if (!decelGinPath.empty())
         {
-            decelStream = CreateStream(decelGinPath);
+            decelStream = CreateStream(decelGinPath, bIsFloatBuffer);
             if (decelStream == nullptr)
             {
                 if (accelStream)
@@ -1356,7 +1364,10 @@ public:
         }
 
         // we'll use accelStream's sample rate as a basis -- TODO: push it further if one of the other samples need it
-        gStream = BASS_Mixer_StreamCreate(sampleRate, 1, BASS_MIXER_NONSTOP | BASS_MIXER_NOSPEAKER | BASS_STREAM_DECODE);
+        DWORD gStreamFlags = BASS_MIXER_NONSTOP | BASS_MIXER_NOSPEAKER | BASS_STREAM_DECODE;
+        if (bFloatBuffer)
+            gStreamFlags |= BASS_SAMPLE_FLOAT;
+        gStream = BASS_Mixer_StreamCreate(sampleRate, 1, gStreamFlags);
         if (gStream == NULL)
         {
             ReleaseEverything();
@@ -1491,6 +1502,7 @@ public:
         FrameLimiter::Init(mFPSLimitMode, FPSLimit);
 
         bLoaded = true;
+        
         return true;
     }
 
@@ -1619,7 +1631,7 @@ public:
     }
 
     // Gets the data from the stream into the outBuffer
-    DWORD GetData(int16_t* outBuffer, DWORD length)
+    DWORD GetData(void* outBuffer, DWORD length)
     {
         if (!bLoaded)
             return 0;
@@ -2380,6 +2392,7 @@ public:
         bAccelDirection = true;
         bOldDirection = true;
         bLoaded = false;
+        bFloatBuffer = false;
         
         hsIdle = 0;
         hsRedline = 0;
@@ -2476,13 +2489,13 @@ private:
     DWORD sampleRate;
 
 public:
-    BASSGinsuStream* CreateStream(std::filesystem::path ginPath)
+    BASSGinsuStream* CreateStream(std::filesystem::path ginPath, bool bIsFloatBuffer)
     {
         BASSGinsuStream* stream = new BASSGinsuStream();
         if (stream == nullptr)
             return nullptr;
 
-        if (!stream->Load(ginPath))
+        if (!stream->Load(ginPath, bIsFloatBuffer))
         {
             delete stream;
             return nullptr;
@@ -2497,13 +2510,13 @@ public:
         return stream;
     }
 
-    BASSGinsuMultiStream* CreateStream(std::filesystem::path accelGinPath, std::filesystem::path decelGinPath, std::filesystem::path redlinePath, std::filesystem::path idlePath, std::filesystem::path reverseWhinePath, std::filesystem::path forwardWhinePath, std::filesystem::path idleWhinePath)
+    BASSGinsuMultiStream* CreateStream(std::filesystem::path accelGinPath, std::filesystem::path decelGinPath, std::filesystem::path redlinePath, std::filesystem::path idlePath, std::filesystem::path reverseWhinePath, std::filesystem::path forwardWhinePath, std::filesystem::path idleWhinePath, bool bIsFloatBuffer)
     {
         BASSGinsuMultiStream* stream = new BASSGinsuMultiStream();
         if (stream == nullptr)
             return nullptr;
 
-        if (!stream->Load(sampleRate, accelGinPath, decelGinPath, redlinePath, idlePath, reverseWhinePath, forwardWhinePath, idleWhinePath))
+        if (!stream->Load(sampleRate, accelGinPath, decelGinPath, redlinePath, idlePath, reverseWhinePath, forwardWhinePath, idleWhinePath, bIsFloatBuffer))
         {
             delete stream;
             return nullptr;
