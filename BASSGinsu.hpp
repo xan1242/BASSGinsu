@@ -1502,7 +1502,6 @@ public:
         FrameLimiter::Init(mFPSLimitMode, FPSLimit);
 
         bLoaded = true;
-        
         return true;
     }
 
