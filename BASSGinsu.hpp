@@ -157,7 +157,7 @@ private:
         // Calculate the index of the lower and upper points for interpolation
         float index = percentage * (numPoints);
         size_t lowerIndex = static_cast<size_t>(index);
-        size_t upperIndex = std::min(lowerIndex + 1, numPoints);
+        size_t upperIndex = (std::min)(lowerIndex + 1, numPoints);
 
         // Calculate the interpolation factor
         float interpolationFactor = index - lowerIndex;
