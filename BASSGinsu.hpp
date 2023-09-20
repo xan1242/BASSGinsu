@@ -1264,7 +1264,7 @@ public:
         if (accelStream == nullptr)
             return false;
 
-        if (!decelGinPath.empty())
+        if (!decelGinPath.empty() && std::filesystem::exists(decelGinPath))
         {
             decelStream = CreateStream(decelGinPath, bIsFloatBuffer);
             if (decelStream == nullptr)
@@ -1275,7 +1275,7 @@ public:
             }
         }
 
-        if (!redlinePath.empty())
+        if (!redlinePath.empty() && std::filesystem::exists(redlinePath))
         {
             hsRedline = BASS_SampleLoad(FALSE, redlinePath.u16string().c_str(), 0, 0, 1, BASS_SAMPLE_LOOP | BASS_SAMPLE_MONO | BASS_UNICODE);
             if (hsRedline == 0)
@@ -1292,7 +1292,7 @@ public:
             BASS_ChannelSetAttribute(chRedline, BASS_ATTRIB_VOL, redlineVol * redlineGlobalVol);
         }
 
-        if (!idlePath.empty())
+        if (!idlePath.empty() && std::filesystem::exists(idlePath))
         {
             hsIdle = BASS_SampleLoad(FALSE, idlePath.u16string().c_str(), 0, 0, 1, BASS_SAMPLE_LOOP | BASS_SAMPLE_MONO | BASS_UNICODE);
             if (hsIdle == 0)
@@ -1309,7 +1309,7 @@ public:
             BASS_ChannelSetAttribute(chIdle, BASS_ATTRIB_VOL, idleVol * idleGlobalVol);
         }
 
-        if (!reverseWhinePath.empty())
+        if (!reverseWhinePath.empty() && std::filesystem::exists(reverseWhinePath))
         {
             hsReverseWhine = BASS_SampleLoad(FALSE, reverseWhinePath.u16string().c_str(), 0, 0, 1, BASS_SAMPLE_LOOP | BASS_SAMPLE_MONO | BASS_UNICODE);
             if (hsReverseWhine == 0)
@@ -1327,7 +1327,7 @@ public:
             BASS_ChannelPause(chReverseWhine);
         }
 
-        if (!forwardWhinePath.empty())
+        if (!forwardWhinePath.empty() && std::filesystem::exists(forwardWhinePath))
         {
             hsForwardWhine = BASS_SampleLoad(FALSE, forwardWhinePath.u16string().c_str(), 0, 0, 1, BASS_SAMPLE_LOOP | BASS_SAMPLE_MONO | BASS_UNICODE);
             if (hsForwardWhine == 0)
@@ -1345,7 +1345,7 @@ public:
             BASS_ChannelPause(chForwardWhine);
         }
 
-        if (!idleWhinePath.empty())
+        if (!idleWhinePath.empty() && std::filesystem::exists(idleWhinePath))
         {
             hsIdleWhine = BASS_SampleLoad(FALSE, idleWhinePath.u16string().c_str(), 0, 0, 1, BASS_SAMPLE_LOOP | BASS_SAMPLE_MONO | BASS_UNICODE);
             if (hsIdleWhine == 0)
