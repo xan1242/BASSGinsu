@@ -1501,6 +1501,8 @@ public:
         // set up FrameLimiter
         FrameLimiter::Init(mFPSLimitMode, FPSLimit);
 
+        SetPlaybackFrequency(freqMin);
+
         bLoaded = true;
         return true;
     }
