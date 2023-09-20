@@ -867,6 +867,7 @@ private:
     bool bOldDirection;
 
     bool bLoaded;
+    bool bCurrentlyLoading;
 
     BASSGinsuStream* CreateStream(std::filesystem::path ginPath, bool bIsFloatBuffer)
     {
@@ -1259,10 +1260,14 @@ public:
     {
         sampleRate = freq;
         bFloatBuffer = bIsFloatBuffer;
+        bCurrentlyLoading = true;
 
         accelStream = CreateStream(accelGinPath, bIsFloatBuffer);
         if (accelStream == nullptr)
+        {
+            bCurrentlyLoading = false;
             return false;
+        }
 
         if (!decelGinPath.empty() && std::filesystem::exists(decelGinPath))
         {
@@ -1271,6 +1276,7 @@ public:
             {
                 if (accelStream)
                     delete accelStream;
+                bCurrentlyLoading = false;
                 return false;
             }
         }
@@ -1281,12 +1287,14 @@ public:
             if (hsRedline == 0)
             {
                 ReleaseEverything();
+                bCurrentlyLoading = false;
                 return false;
             }
             chRedline = BASS_SampleGetChannel(hsRedline, BASS_SAMCHAN_STREAM | BASS_STREAM_DECODE);
             if (chRedline == NULL)
             {
                 ReleaseEverything();
+                bCurrentlyLoading = false;
                 return false;
             }
             BASS_ChannelSetAttribute(chRedline, BASS_ATTRIB_VOL, redlineVol * redlineGlobalVol);
@@ -1298,12 +1306,14 @@ public:
             if (hsIdle == 0)
             {
                 ReleaseEverything();
+                bCurrentlyLoading = false;
                 return false;
             }
             chIdle = BASS_SampleGetChannel(hsIdle, BASS_SAMCHAN_STREAM | BASS_STREAM_DECODE);
             if (chIdle == NULL)
             {
                 ReleaseEverything();
+                bCurrentlyLoading = false;
                 return false;
             }
             BASS_ChannelSetAttribute(chIdle, BASS_ATTRIB_VOL, idleVol * idleGlobalVol);
@@ -1315,12 +1325,14 @@ public:
             if (hsReverseWhine == 0)
             {
                 ReleaseEverything();
+                bCurrentlyLoading = false;
                 return false;
             }
             chReverseWhine = BASS_SampleGetChannel(hsReverseWhine, BASS_SAMCHAN_STREAM | BASS_STREAM_DECODE);
             if (chReverseWhine == NULL)
             {
                 ReleaseEverything();
+                bCurrentlyLoading = false;
                 return false;
             }
             BASS_ChannelSetAttribute(chReverseWhine, BASS_ATTRIB_VOL, 0.0f);
@@ -1333,12 +1345,14 @@ public:
             if (hsForwardWhine == 0)
             {
                 ReleaseEverything();
+                bCurrentlyLoading = false;
                 return false;
             }
             chForwardWhine = BASS_SampleGetChannel(hsForwardWhine, BASS_SAMCHAN_STREAM | BASS_STREAM_DECODE);
             if (chForwardWhine == NULL)
             {
                 ReleaseEverything();
+                bCurrentlyLoading = false;
                 return false;
             }
             BASS_ChannelSetAttribute(chForwardWhine, BASS_ATTRIB_VOL, 0.0f);
@@ -1351,12 +1365,14 @@ public:
             if (hsIdleWhine == 0)
             {
                 ReleaseEverything();
+                bCurrentlyLoading = false;
                 return false;
             }
             chIdleWhine = BASS_SampleGetChannel(hsIdleWhine, BASS_SAMCHAN_STREAM | BASS_STREAM_DECODE);
             if (chIdleWhine == NULL)
             {
                 ReleaseEverything();
+                bCurrentlyLoading = false;
                 return false;
             }
             BASS_ChannelSetAttribute(chIdleWhine, BASS_ATTRIB_VOL, 0.0f);
@@ -1371,6 +1387,7 @@ public:
         if (gStream == NULL)
         {
             ReleaseEverything();
+            bCurrentlyLoading = false;
             return false;
         }
 
@@ -1378,6 +1395,7 @@ public:
         if (BASS_Mixer_StreamAddChannel(gStream, accelStream->GetStreamHandle(), BASS_MIXER_CHAN_NORAMPIN) == FALSE)
         {
             ReleaseEverything();
+            bCurrentlyLoading = false;
             return false;
         }
 
@@ -1386,6 +1404,7 @@ public:
             if (BASS_Mixer_StreamAddChannel(gStream, decelStream->GetStreamHandle(), BASS_MIXER_CHAN_NORAMPIN) == FALSE)
             {
                 ReleaseEverything();
+                bCurrentlyLoading = false;
                 return false;
             }
         }
@@ -1395,6 +1414,7 @@ public:
             if (BASS_Mixer_StreamAddChannel(gStream, chRedline, BASS_MIXER_CHAN_NORAMPIN) == FALSE)
             {
                 ReleaseEverything();
+                bCurrentlyLoading = false;
                 return false;
             }
         }
@@ -1404,6 +1424,7 @@ public:
             if (BASS_Mixer_StreamAddChannel(gStream, chIdle, BASS_MIXER_CHAN_NORAMPIN) == FALSE)
             {
                 ReleaseEverything();
+                bCurrentlyLoading = false;
                 return false;
             }
         }
@@ -1413,6 +1434,7 @@ public:
             if (BASS_Mixer_StreamAddChannel(gStream, chReverseWhine, BASS_MIXER_CHAN_NORAMPIN) == FALSE)
             {
                 ReleaseEverything();
+                bCurrentlyLoading = false;
                 return false;
             }
         }
@@ -1422,6 +1444,7 @@ public:
             if (BASS_Mixer_StreamAddChannel(gStream, chForwardWhine, BASS_MIXER_CHAN_NORAMPIN) == FALSE)
             {
                 ReleaseEverything();
+                bCurrentlyLoading = false;
                 return false;
             }
         }
@@ -1431,6 +1454,7 @@ public:
             if (BASS_Mixer_StreamAddChannel(gStream, chIdleWhine, BASS_MIXER_CHAN_NORAMPIN) == FALSE)
             {
                 ReleaseEverything();
+                bCurrentlyLoading = false;
                 return false;
             }
         }
@@ -1504,12 +1528,13 @@ public:
         SetPlaybackFrequency(freqMin);
 
         bLoaded = true;
+        bCurrentlyLoading = false;
         return true;
     }
 
     BOOL Play(BOOL restart)
     {
-        if (!bLoaded)
+        if (!bLoaded && !bCurrentlyLoading)
             return FALSE;
 
         return BASS_ChannelPlay(gStream, restart);
@@ -1517,7 +1542,7 @@ public:
 
     BOOL Stop()
     {
-        if (!bLoaded)
+        if (!bLoaded && !bCurrentlyLoading)
             return FALSE;
 
         return BASS_ChannelStop(gStream);
@@ -1525,7 +1550,7 @@ public:
 
     BOOL Pause()
     {
-        if (!bLoaded)
+        if (!bLoaded && !bCurrentlyLoading)
             return FALSE;
 
         return BASS_ChannelPause(gStream);
@@ -1533,7 +1558,7 @@ public:
 
     BOOL SetVolume(float inVol)
     {
-        if (!bLoaded)
+        if (!bLoaded && !bCurrentlyLoading)
             return FALSE;
 
         return BASS_ChannelSetAttribute(gStream, BASS_ATTRIB_VOL, inVol);
@@ -1541,7 +1566,7 @@ public:
 
     float GetVolume()
     {
-        if (!bLoaded)
+        if (!bLoaded && !bCurrentlyLoading)
             return 0.0f;
 
         float ret = 0.0f;
@@ -1554,7 +1579,7 @@ public:
     // Set the volume of the accel gin stream
     void SetAccelVolume(float inVol)
     {
-        if (!bLoaded)
+        if (!bLoaded && !bCurrentlyLoading)
             return;
 
         accelGlobalVol = std::clamp(inVol, 0.0f, 1.0f);
@@ -1563,7 +1588,7 @@ public:
     // Set the volume of the decel gin stream
     void SetDecelVolume(float inVol)
     {
-        if (!bLoaded)
+        if (!bLoaded && !bCurrentlyLoading)
             return;
         if (!decelStream)
             return;
@@ -1574,7 +1599,7 @@ public:
     // Set the volume of the redline sound
     void SetRedlineVolume(float inVol)
     {
-        if (!bLoaded)
+        if (!bLoaded && !bCurrentlyLoading)
             return;
         if (!chRedline)
             return;
@@ -1585,7 +1610,7 @@ public:
     // Set the volume of the idle sound
     void SetIdleVolume(float inVol)
     {
-        if (!bLoaded)
+        if (!bLoaded && !bCurrentlyLoading)
             return;
         if (!chIdle)
             return;
@@ -1595,7 +1620,7 @@ public:
 
     void SetReverseWhineVolume(float inVol)
     {
-        if (!bLoaded)
+        if (!bLoaded && !bCurrentlyLoading)
             return;
         if (!chIdle)
             return;
@@ -1605,7 +1630,7 @@ public:
 
     void SetForwardWhineVolume(float inVol)
     {
-        if (!bLoaded)
+        if (!bLoaded && !bCurrentlyLoading)
             return;
         if (!chIdle)
             return;
@@ -1615,7 +1640,7 @@ public:
 
     void SetIdleWhineVolume(float inVol)
     {
-        if (!bLoaded)
+        if (!bLoaded && !bCurrentlyLoading)
             return;
         if (!chIdle)
             return;
@@ -1625,7 +1650,7 @@ public:
 
     HSTREAM GetStreamHandle()
     {
-        if (!bLoaded)
+        if (!bLoaded && !bCurrentlyLoading)
             return 0;
 
         return gStream;
@@ -1634,7 +1659,7 @@ public:
     // Gets the data from the stream into the outBuffer
     DWORD GetData(void* outBuffer, DWORD length)
     {
-        if (!bLoaded)
+        if (!bLoaded && !bCurrentlyLoading)
             return 0;
 
         return BASS_ChannelGetData(gStream, outBuffer, length);
@@ -1642,7 +1667,7 @@ public:
 
     void SetFrequency(float inFreq)
     {
-        if (!bLoaded)
+        if (!bLoaded && !bCurrentlyLoading)
             return;
 
         SetPlaybackFrequency(inFreq);
@@ -1650,7 +1675,7 @@ public:
 
     float GetFrequency()
     {
-        if (!bLoaded)
+        if (!bLoaded && !bCurrentlyLoading)
             return 0.0f;
 
         return freqCurrent;
@@ -1658,7 +1683,7 @@ public:
 
     float GetFrequencyDelta()
     {
-        if (!bLoaded)
+        if (!bLoaded && !bCurrentlyLoading)
             return 0.0f;
 
         return freqDelta;
@@ -1667,7 +1692,7 @@ public:
     // Gets the maximum RPM
     float GetMaxFrequency()
     {
-        if (!bLoaded)
+        if (!bLoaded && !bCurrentlyLoading)
             return 0.0f;
 
         return freqMax;
@@ -1676,7 +1701,7 @@ public:
     // Gets the minimum RPM
     float GetMinFrequency()
     {
-        if (!bLoaded)
+        if (!bLoaded && !bCurrentlyLoading)
             return 0.0f;
 
         return freqMin;
@@ -1685,7 +1710,7 @@ public:
     // Sets the maximum RPM 
     void SetMaxFrequency(float inFreq)
     {
-        if (!bLoaded)
+        if (!bLoaded && !bCurrentlyLoading)
             return;
 
         freqMax = inFreq;
@@ -1712,7 +1737,7 @@ public:
     // Sets the minimum RPM 
     void SetMinFrequency(float inFreq)
     {
-        if (!bLoaded)
+        if (!bLoaded && !bCurrentlyLoading)
             return;
 
         freqMin = inFreq;
@@ -1738,7 +1763,7 @@ public:
 
     void SetSpeed(float inSpeedMPS)
     {
-        if (!bLoaded)
+        if (!bLoaded && !bCurrentlyLoading)
             return;
 
         SetPlaybackSpeed(inSpeedMPS);
@@ -1746,7 +1771,7 @@ public:
 
     float GetSpeed()
     {
-        if (!bLoaded)
+        if (!bLoaded && !bCurrentlyLoading)
             return 0.0f;
 
         return speedCurrent;
@@ -1754,7 +1779,7 @@ public:
 
     void SetCurrentlyShifting(bool bStatus)
     {
-        if (!bLoaded)
+        if (!bLoaded && !bCurrentlyLoading)
             return;
 
         bCurrentlyShifting = bStatus;
@@ -1762,7 +1787,7 @@ public:
 
     bool GetCurrentlyShifting()
     {
-        if (!bLoaded)
+        if (!bLoaded && !bCurrentlyLoading)
             return false;
 
         return bCurrentlyShifting;
@@ -1771,7 +1796,7 @@ public:
     // Sets at which RPM the redline sound should start fading in
     void SetRedlineStart(float inFreq)
     {
-        if (!bLoaded)
+        if (!bLoaded && !bCurrentlyLoading)
             return;
 
         redlineStart = inFreq;
@@ -1782,7 +1807,7 @@ public:
     // Sets at which RPM the idle sound should start fading out
     void SetIdleEnd(float inFreq)
     {
-        if (!bLoaded)
+        if (!bLoaded && !bCurrentlyLoading)
             return;
 
         idleEnd = inFreq;
@@ -1792,7 +1817,7 @@ public:
 
     BOOL SetRedlinePitch(float inPitch)
     {
-        if (!bLoaded)
+        if (!bLoaded && !bCurrentlyLoading)
             return FALSE;
         if (!chRedline)
             return FALSE;
@@ -1804,7 +1829,7 @@ public:
 
     BOOL SetIdlePitch(float inPitch)
     {
-        if (!bLoaded)
+        if (!bLoaded && !bCurrentlyLoading)
             return FALSE;
         if (!chIdle)
             return FALSE;
@@ -1816,7 +1841,7 @@ public:
 
     uint32_t GetSampleRate()
     {
-        if (!bLoaded)
+        if (!bLoaded && !bCurrentlyLoading)
             return 0;
 
         float v = 0.0f;
@@ -1830,7 +1855,7 @@ public:
     // This is the "buffer" range between accel and decel sound transitions
     void SetDecelXFadeRatio(float inRatio)
     {
-        if (!bLoaded)
+        if (!bLoaded && !bCurrentlyLoading)
             return;
 
         if (!decelStream)
@@ -1845,7 +1870,7 @@ public:
     // Gets the decel crossfade range ratio
     float GetDecelXFadeRatio()
     {
-        if (!bLoaded)
+        if (!bLoaded && !bCurrentlyLoading)
             return 0.0f;
 
         if (!decelStream)
@@ -1858,7 +1883,7 @@ public:
     // This is the "buffer" range between accel and decel sound transitions
     void SetAccelXFadeRatio(float inRatio)
     {
-        if (!bLoaded)
+        if (!bLoaded && !bCurrentlyLoading)
             return;
 
         if (!decelStream)
@@ -1873,7 +1898,7 @@ public:
     // Gets the decel crossfade range ratio
     float GetAccelXFadeRatio()
     {
-        if (!bLoaded)
+        if (!bLoaded && !bCurrentlyLoading)
             return 0.0f;
 
         if (!decelStream)
@@ -1886,7 +1911,7 @@ public:
     // This is the "buffer" range between accel and decel sound transitions
     void SetDecelXFadeRange(float inRange)
     {
-        if (!bLoaded)
+        if (!bLoaded && !bCurrentlyLoading)
             return;
 
         DecelXFadeRPMRange = inRange;
@@ -1895,7 +1920,7 @@ public:
     // Gets the current decel crossfade range
     float GetDecelXFadeRange()
     {
-        if (!bLoaded)
+        if (!bLoaded && !bCurrentlyLoading)
             return 0.0f;
 
         if (!decelStream)
@@ -1908,7 +1933,7 @@ public:
     // This is the "buffer" range between accel and decel sound transitions
     void SetAccelXFadeRange(float inRange)
     {
-        if (!bLoaded)
+        if (!bLoaded && !bCurrentlyLoading)
             return;
 
         AccelXFadeRPMRange = inRange;
@@ -1917,7 +1942,7 @@ public:
     // Gets the current accel crossfade range
     float GetAccelXFadeRange()
     {
-        if (!bLoaded)
+        if (!bLoaded && !bCurrentlyLoading)
             return 0.0f;
 
         if (!decelStream)
@@ -1929,7 +1954,7 @@ public:
     // This is the "buffer" range between accel and decel sound transitions
     void SetRateDecelXFadeRatio(float inRatio)
     {
-        if (!bLoaded)
+        if (!bLoaded && !bCurrentlyLoading)
             return;
 
         if (!decelStream)
@@ -1944,7 +1969,7 @@ public:
     // Gets the decel crossfade range ratio
     float GetRateDecelXFadeRatio()
     {
-        if (!bLoaded)
+        if (!bLoaded && !bCurrentlyLoading)
             return 0.0f;
 
         if (!decelStream)
@@ -1957,7 +1982,7 @@ public:
     // This is the "buffer" range between accel and decel sound transitions
     void SetRateAccelXFadeRatio(float inRatio)
     {
-        if (!bLoaded)
+        if (!bLoaded && !bCurrentlyLoading)
             return;
 
         if (!decelStream)
@@ -1972,7 +1997,7 @@ public:
     // Gets the decel crossfade range ratio
     float GetRateAccelXFadeRatio()
     {
-        if (!bLoaded)
+        if (!bLoaded && !bCurrentlyLoading)
             return 0.0f;
 
         if (!decelStream)
@@ -1985,7 +2010,7 @@ public:
     // This is the "buffer" range between accel and decel sound transitions
     void SetRateDecelXFadeRange(float inRange)
     {
-        if (!bLoaded)
+        if (!bLoaded && !bCurrentlyLoading)
             return;
 
         rateDecelXFadeRPMRange = inRange;
@@ -1993,7 +2018,7 @@ public:
 
     float GetRateDecelXFadeRange()
     {
-        if (!bLoaded)
+        if (!bLoaded && !bCurrentlyLoading)
             return 0.0f;
 
         if (!decelStream)
@@ -2004,7 +2029,7 @@ public:
 
     void SetRateAccelXFadeRange(float inRange)
     {
-        if (!bLoaded)
+        if (!bLoaded && !bCurrentlyLoading)
             return;
 
         rateAccelXFadeRPMRange = inRange;
@@ -2012,7 +2037,7 @@ public:
 
     float GetRateAccelXFadeRange()
     {
-        if (!bLoaded)
+        if (!bLoaded && !bCurrentlyLoading)
             return 0.0f;
 
         if (!decelStream)
@@ -2023,7 +2048,7 @@ public:
 
     void SetRateDecelEqXFadeRatio(float inRatio)
     {
-        if (!bLoaded)
+        if (!bLoaded && !bCurrentlyLoading)
             return;
 
         if (!decelStream)
@@ -2038,7 +2063,7 @@ public:
     // Gets the decel crossfade range ratio
     float GetRateDecelEqXFadeRatio()
     {
-        if (!bLoaded)
+        if (!bLoaded && !bCurrentlyLoading)
             return 0.0f;
 
         if (!decelStream)
@@ -2051,7 +2076,7 @@ public:
     // This is the "buffer" range between accel and decel sound transitions
     void SetRateAccelEqXFadeRatio(float inRatio)
     {
-        if (!bLoaded)
+        if (!bLoaded && !bCurrentlyLoading)
             return;
 
         if (!decelStream)
@@ -2066,7 +2091,7 @@ public:
     // Gets the decel crossfade range ratio
     float GetRateAccelEqXFadeRatio()
     {
-        if (!bLoaded)
+        if (!bLoaded && !bCurrentlyLoading)
             return 0.0f;
 
         if (!decelStream)
@@ -2078,7 +2103,7 @@ public:
 
     void SetRateDecelEqXFadeRange(float inRange)
     {
-        if (!bLoaded)
+        if (!bLoaded && !bCurrentlyLoading)
             return;
 
         rateDecelEqXFadeRPMRange = inRange;
@@ -2086,7 +2111,7 @@ public:
 
     float GetRateDecelEqXFadeRange()
     {
-        if (!bLoaded)
+        if (!bLoaded && !bCurrentlyLoading)
             return 0.0f;
 
         if (!decelStream)
@@ -2097,7 +2122,7 @@ public:
 
     void SetRateAccelEqXFadeRange(float inRange)
     {
-        if (!bLoaded)
+        if (!bLoaded && !bCurrentlyLoading)
             return;
 
         rateAccelEqXFadeRPMRange = inRange;
@@ -2105,7 +2130,7 @@ public:
 
     float GetRateAccelEqXFadeRange()
     {
-        if (!bLoaded)
+        if (!bLoaded && !bCurrentlyLoading)
             return 0.0f;
 
         if (!decelStream)
@@ -2116,7 +2141,7 @@ public:
 
     void SetReverseWhineEnable(bool bEnable)
     {
-        if (!bLoaded)
+        if (!bLoaded && !bCurrentlyLoading)
             return;
         if (chReverseWhine)
         {
@@ -2135,7 +2160,7 @@ public:
 
     void SetForwardWhineEnable(bool bEnable)
     {
-        if (!bLoaded)
+        if (!bLoaded && !bCurrentlyLoading)
             return;
         if (chForwardWhine)
         {
@@ -2154,7 +2179,7 @@ public:
 
     void SetIdleWhineEnable(bool bEnable)
     {
-        if (!bLoaded)
+        if (!bLoaded && !bCurrentlyLoading)
             return;
         if (chIdleWhine)
         {
@@ -2173,7 +2198,7 @@ public:
 
     bool GetReverseWhineEnable()
     {
-        if (!bLoaded)
+        if (!bLoaded && !bCurrentlyLoading)
             return false;
         if (!chReverseWhine)
             return false;
@@ -2183,7 +2208,7 @@ public:
 
     bool GetForwardWhineEnable()
     {
-        if (!bLoaded)
+        if (!bLoaded && !bCurrentlyLoading)
             return false;
         if (!chForwardWhine)
             return false;
@@ -2193,7 +2218,7 @@ public:
 
     bool GetIdleWhineEnable()
     {
-        if (!bLoaded)
+        if (!bLoaded && !bCurrentlyLoading)
             return false;
         if (!chIdleWhine)
             return false;
@@ -2203,7 +2228,7 @@ public:
 
     void SetReverseWhineMinVol(float inVol)
     {
-        if (!bLoaded)
+        if (!bLoaded && !bCurrentlyLoading)
             return;
         if (chReverseWhine)
             reverseWhineMinVol = inVol;
@@ -2219,7 +2244,7 @@ public:
 
     void SetIdleWhineMinVol(float inVol)
     {
-        if (!bLoaded)
+        if (!bLoaded && !bCurrentlyLoading)
             return;
         if (chIdleWhine)
             idleWhineMinVol = inVol;
@@ -2227,7 +2252,7 @@ public:
 
     float GetIdleWhineMinVol()
     {
-        if (!bLoaded)
+        if (!bLoaded && !bCurrentlyLoading)
             return 0.0f;
 
         if (!chIdleWhine)
@@ -2238,7 +2263,7 @@ public:
 
     void SetReverseWhineFadeRange(float inSpeedMPS)
     {
-        if (!bLoaded)
+        if (!bLoaded && !bCurrentlyLoading)
             return;
         if (chReverseWhine)
             reverseWhineFadeRange = inSpeedMPS;
@@ -2246,7 +2271,7 @@ public:
 
     void SetIdleWhineFadeRange(float inSpeedMPS)
     {
-        if (!bLoaded)
+        if (!bLoaded && !bCurrentlyLoading)
             return;
         if (chIdleWhine)
             idleWhineFadeRange = inSpeedMPS;
@@ -2254,7 +2279,7 @@ public:
 
     float GetReverseWhineFadeRange()
     {
-        if (!bLoaded)
+        if (!bLoaded && !bCurrentlyLoading)
             return 0.0f;
         if (!chReverseWhine)
             return 0.0f;
@@ -2263,7 +2288,7 @@ public:
 
     float GetIdleWhineFadeRange()
     {
-        if (!bLoaded)
+        if (!bLoaded && !bCurrentlyLoading)
             return 0.0f;
         if (!chIdleWhine)
             return 0.0f;
@@ -2272,70 +2297,70 @@ public:
 
     void SetRateMinVol(float inVol)
     {
-        if (!bLoaded)
+        if (!bLoaded && !bCurrentlyLoading)
             return;
         rateMinVol = inVol;
     }
 
     float GetRateMinVol()
     {
-        if (!bLoaded)
+        if (!bLoaded && !bCurrentlyLoading)
             return 0.0f;
         return rateMinVol;
     }
 
     void SetRateEqCurve(float inCurve)
     {
-        if (!bLoaded)
+        if (!bLoaded && !bCurrentlyLoading)
             return;
         rateEqCurve = inCurve;
     }
 
     float GetRateEqCurve()
     {
-        if (!bLoaded)
+        if (!bLoaded && !bCurrentlyLoading)
             return 0.0f;
         return rateEqCurve;
     }
 
     void SetRateVolCurve(float inCurve)
     {
-        if (!bLoaded)
+        if (!bLoaded && !bCurrentlyLoading)
             return;
         rateVolCurve = inCurve;
     }
 
     float GetRateVolCurve()
     {
-        if (!bLoaded)
+        if (!bLoaded && !bCurrentlyLoading)
             return 0.0f;
         return rateVolCurve;
     }
 
     void SetRateRPMTarget(float inRPM)
     {
-        if (!bLoaded)
+        if (!bLoaded && !bCurrentlyLoading)
             return;
         rateRPMTarget = inRPM;
     }
 
     float GetRateRPMTarget()
     {
-        if (!bLoaded)
+        if (!bLoaded && !bCurrentlyLoading)
             return 0.0f;
         return rateRPMTarget;
     }
 
     void SetFPSLimit(double inFPS)
     {
-        if (!bLoaded)
+        if (!bLoaded && !bCurrentlyLoading)
             return;
         FPSLimit = inFPS;
     }
 
     double GetFPSLimit()
     {
-        if (!bLoaded)
+        if (!bLoaded && !bCurrentlyLoading)
             return 0.0f;
         return FPSLimit;
     }
@@ -2393,6 +2418,7 @@ public:
         bAccelDirection = true;
         bOldDirection = true;
         bLoaded = false;
+        bCurrentlyLoading = false;
         bFloatBuffer = false;
         
         hsIdle = 0;
