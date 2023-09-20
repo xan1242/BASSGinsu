@@ -814,6 +814,8 @@ private:
     float eqBandwidthACL;
     float eqBandwidthDCL;
 
+    float throttleAmount;
+
     float accelGlobalVol;
     float decelGlobalVol;
 
@@ -1113,6 +1115,9 @@ private:
             rateVol = cus_lerp(rateOldVol, rateVolCalc, d);
         }
 
+        // account for the throttle
+        rateVol = cus_lerp(rateVol, 1.0, throttleAmount);
+
         float rateEqAmountCalc = 0;
 
         if (rateEqCurve <= 1.0f)
@@ -1130,6 +1135,9 @@ private:
             float d = std::clamp(curRateEqRPMXFadeTarget / freqCurrent, 0.0f, 1.0f);
             rateEqAmount = cus_lerp(rateEqOldAmount, rateEqAmountCalc, d);
         }
+
+        // account for the throttle
+        rateEqAmount = cus_lerp(rateEqAmount, 1.0, throttleAmount);
 
         eqACL.fGain = cus_lerp(eqMinGainACL, eqMaxGainACL, rateEqAmount);
 
@@ -2363,6 +2371,20 @@ public:
         if (!bLoaded && !bCurrentlyLoading)
             return 0.0f;
         return FPSLimit;
+    }
+
+    void SetThrottle(float inThrottle)
+    {
+        if (!bLoaded && !bCurrentlyLoading)
+            return;
+        throttleAmount = inThrottle;
+    }
+
+    float GetThrottle()
+    {
+        if (!bLoaded && !bCurrentlyLoading)
+            return 0.0f;
+        return throttleAmount;
     }
 
     BASSGinsuMultiStream()
