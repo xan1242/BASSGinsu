@@ -264,6 +264,9 @@ private:
         double chan1vol = 1.0f - (((double)samp - (double)ls) / ((double)le - (double)ls));
         double chan2vol = 1.0f - chan1vol;
 
+        chan1vol = std::clamp(chan1vol, 0.0, 1.0);
+        chan2vol = std::clamp(chan2vol, 0.0, 1.0);
+
         BASS_ChannelSetAttribute(channel1, BASS_ATTRIB_VOL, chan1vol);
         BASS_ChannelSetAttribute(channel2, BASS_ATTRIB_VOL, chan2vol);
     }
