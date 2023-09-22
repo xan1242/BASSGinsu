@@ -102,7 +102,7 @@ private:
     DWORD* chans;
     HSTREAM gStream;
     bool bFloatBuffer;
-    
+
     // Playback stuff
     DWORD chan;
     DWORD channext;
@@ -271,8 +271,7 @@ private:
     void SetPlaybackFrequency(float inFreq)
     {
         uint32_t samp = FrequencyToSample(inFreq);
-        float cycle = SampleToCycle(samp, oldcyc, freqDelta < 0);
-        int cycint = cycle;
+        int cycint = SampleToCycle(samp, oldcyc, freqDelta < 0);
 
         GIN_DIRECTION loc_dir = GinDir;
         if (cycint == 0)
@@ -507,7 +506,7 @@ public:
         gStream = BASS_Mixer_StreamCreate(GinsuHead.sampleRate, 1, gStreamFlags);
         if (gStream == NULL)
             return false;
-        
+
         for (int i = 0; i < GinsuHead.cycleCount; i++)
         {
             if (BASS_Mixer_StreamAddChannel(gStream, chans[i], BASS_MIXER_CHAN_NORAMPIN) == FALSE)
@@ -723,7 +722,7 @@ public:
             {
                 BASS_SampleFree(hsv[i]);
             }
-            free(hsv);
+        free(hsv);
         if (chans)
         {
             free(chans);
@@ -740,7 +739,7 @@ class BASSGinsuMultiStream
 {
 public:
     BASSGinsuStream* accelStream;
-    BASSGinsuStream* decelStream;   
+    BASSGinsuStream* decelStream;
 
 
 private:
@@ -815,6 +814,7 @@ private:
     float eqBandwidthDCL;
 
     float throttleAmount;
+    float throttleDecelFactor;
 
     float accelGlobalVol;
     float decelGlobalVol;
@@ -886,7 +886,7 @@ private:
         return stream;
     }
 
-    float calculateNewSampleRate(float originalSampleRate, float semitonesShift) 
+    float calculateNewSampleRate(float originalSampleRate, float semitonesShift)
     {
         // Define the constant for the twelfth root of 2 (used to calculate semitone frequency ratio).
         //const float twelfthRootOf2 = powf(2.0, 1.0 / 12.0);
@@ -983,11 +983,11 @@ private:
         std::chrono::duration<float> timeElapsed = std::chrono::duration_cast<std::chrono::duration<float>>(currentTime - lastTime);
 
         // Calculate the rate of change of RPM
-        if (timeElapsed.count() > 0) 
+        if (timeElapsed.count() > 0)
         {
             rateOfChange = ::fabs(freqDelta2) / timeElapsed.count();
         }
-        else 
+        else
         {
             rateOfChange = 0.0;  // Handle the case where timeElapsed is very small
         }
@@ -1057,6 +1057,12 @@ private:
                 }
             }
 
+            if (!bCurrentlyShifting)
+            {
+                decelVol = cus_lerp(decelVol, 0.0f, throttleAmount);
+                accelVol = cus_lerp(accelVol, 1.0f, throttleAmount);
+            }
+
             decelVol = std::clamp(decelVol, 0.0f, 1.0f);
             accelVol = std::clamp(accelVol, 0.0f, 1.0f);
         }
@@ -1124,7 +1130,7 @@ private:
             rateEqAmountCalc = std::clamp(cus_lerp(0.0f, 1.0f, ratePct), 0.0f, 1.0f);
         else
             rateEqAmountCalc = std::clamp(cus_lerp(0.0f, 1.0f, linearToLogarithmic(ratePct, rateEqCurve)), 0.0f, 1.0f);
-        
+
         if (bAccelDirection)
         {
             float d = std::clamp(freqCurrent / curRateEqRPMXFadeTarget, 0.0f, 1.0f);
@@ -1181,7 +1187,7 @@ private:
             if (bForwardWhineEnable && !bCurrentlyShifting)
             {
                 forwardWhineVol = std::clamp(cus_lerp(forwardWhineMinVol, 1.0f, inSpeedMPS / forwardWhineFadeRange), 0.0f, 1.0f);
-                
+
 
                 BASS_ChannelSetAttribute(chForwardWhine, BASS_ATTRIB_VOL, forwardWhineVol * forwardWhineGlobalVol);
                 BASS_ChannelSetAttribute(chForwardWhine, BASS_ATTRIB_FREQ, calculateNewSampleRate(forwardWhineSampleRate, calculateFwdWhineSemitones(inSpeedMPS)));
@@ -1520,7 +1526,7 @@ public:
         {
             BASS_FXSetParameters(fxACL, &eqACL);
         }
-        
+
         if (decelStream)
         {
             fxDCL = BASS_ChannelSetFX(decelStream->GetStreamHandle(), BASS_FX_DX8_PARAMEQ, 0);
@@ -2416,6 +2422,9 @@ public:
         rateRPMTarget = 1500.0f;
         rateOfChange = 0.0f;
 
+        throttleAmount = 0.0f;
+        throttleDecelFactor = 0.8f;
+
         rateAccelXFadeRPMRatio = 2.0f; // 1/2 of the RPM range will be used as the crossfade range
         rateAccelXFadeRPMRange = 0.0f;
         rateDecelXFadeRPMRatio = 2.0f; // 1/2 of the RPM range will be used as the crossfade range
@@ -2442,7 +2451,7 @@ public:
         bLoaded = false;
         bCurrentlyLoading = false;
         bFloatBuffer = false;
-        
+
         hsIdle = 0;
         hsRedline = 0;
         hsReverseWhine = 0;
@@ -2490,7 +2499,7 @@ public:
         idleWhineVol = 1.0f;
         idleWhineGlobalVol = 1.0f;
         idleWhineSampleRate = 0.0f;
-        bIdleWhineEnable = false;       
+        bIdleWhineEnable = false;
 
         bCurrentlyShifting = false;
 
@@ -2678,11 +2687,11 @@ public:
     BASSGinsuPlayer(int device, DWORD freq, DWORD flags, HWND win)
     {
         // BASS Init
-        if (HIWORD(BASS_GetVersion()) != BASSVERSION) 
+        if (HIWORD(BASS_GetVersion()) != BASSVERSION)
             throw std::runtime_error("An incorrect version of BASS.DLL was loaded.");
         if (!BASS_Init(device, freq, flags, win, NULL))
             throw std::runtime_error("BASS lib couldn't be initialized (BASS_Init)");
-        
+
         BASS_SetConfig(BASS_CONFIG_MIXER_BUFFER, 0);
         BASS_SetConfig(BASS_CONFIG_MIXER_POSEX, 0);
         volume = 1.0f;
@@ -2691,7 +2700,7 @@ public:
 
     ~BASSGinsuPlayer()
     {
-        for (BASSGinsuStream* stream : ginStreams) 
+        for (BASSGinsuStream* stream : ginStreams)
         {
             delete stream;
         }
