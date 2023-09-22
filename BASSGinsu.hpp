@@ -817,7 +817,6 @@ private:
     float eqBandwidthDCL;
 
     float throttleAmount;
-    float throttleDecelFactor;
 
     float accelGlobalVol;
     float decelGlobalVol;
@@ -995,13 +994,13 @@ private:
             rateOfChange = 0.0;  // Handle the case where timeElapsed is very small
         }
 
-        if (freqDelta < 0)
-        {
-            bAccelDirection = false;
-        }
-        else if (freqDelta > 0)
+        if (((freqDelta > 0) || (throttleAmount > 0)) && !bCurrentlyShifting)
         {
             bAccelDirection = true;
+        }
+        else if (freqDelta < 0)
+        {
+            bAccelDirection = false;
         }
 
         accelStream->SetFrequency(inFreq);
@@ -1058,12 +1057,6 @@ private:
                     decelVol = dclDist;
                     accelVol = aclDist;
                 }
-            }
-
-            if (!bCurrentlyShifting)
-            {
-                decelVol = cus_lerp(decelVol, 0.0f, throttleAmount);
-                accelVol = cus_lerp(accelVol, 1.0f, throttleAmount);
             }
 
             decelVol = std::clamp(decelVol, 0.0f, 1.0f);
@@ -2426,7 +2419,6 @@ public:
         rateOfChange = 0.0f;
 
         throttleAmount = 0.0f;
-        throttleDecelFactor = 0.8f;
 
         rateAccelXFadeRPMRatio = 2.0f; // 1/2 of the RPM range will be used as the crossfade range
         rateAccelXFadeRPMRange = 0.0f;
