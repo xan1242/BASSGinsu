@@ -857,6 +857,7 @@ private:
     bool bReverseWhineEnable;
 
     float forwardWhineFadeRange;
+    float forwardWhineDecelFadeRange;
     float forwardWhineLastSpeed;
     float forwardWhineLastVol;
     float forwardWhineMinVol;
@@ -2343,6 +2344,14 @@ public:
             forwardWhineFadeRange = inSpeedMPS;
     }
 
+    void SetForwardWhineDecelFadeRange(float inSpeedMPS)
+    {
+        if (!bLoaded && !bCurrentlyLoading)
+            return;
+        if (chForwardWhine)
+            forwardWhineDecelFadeRange = inSpeedMPS;
+    }
+
     void SetIdleWhineFadeRange(float inSpeedMPS)
     {
         if (!bLoaded && !bCurrentlyLoading)
@@ -2367,6 +2376,15 @@ public:
         if (!chForwardWhine)
             return 0.0f;
         return forwardWhineFadeRange;
+    }
+
+    float GetForwardWhineDecelFadeRange()
+    {
+        if (!bLoaded && !bCurrentlyLoading)
+            return 0.0f;
+        if (!chForwardWhine)
+            return 0.0f;
+        return forwardWhineDecelFadeRange;
     }
 
     float GetIdleWhineFadeRange()
@@ -2672,7 +2690,8 @@ public:
         reverseWhineSampleRate = 0.0f;
         bReverseWhineEnable = false;
 
-        forwardWhineFadeRange = 3.6f;
+        forwardWhineFadeRange = 83.3f;
+        forwardWhineDecelFadeRange = 26.0f;
         forwardWhineMinVol = 0.3f;
         forwardWhineVol = 1.0f;
         forwardWhineLastVol = 0.0f;
