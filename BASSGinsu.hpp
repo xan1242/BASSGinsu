@@ -770,6 +770,7 @@ private:
 
     FrameLimiter::FPSLimitMode mFPSLimitMode;
     std::chrono::high_resolution_clock::time_point lastTime;
+    //std::chrono::high_resolution_clock::time_point lastTimeSpeed;
     double FPSLimit;
 
     float freqCurrent;
@@ -803,6 +804,7 @@ private:
     float curRateEqRPMXFadeTarget;
 
     float rateOfChange;
+    //float rateOfChangeSpeed;
 
     float eqMinGainACL;
     float eqMinGainDCL;
@@ -842,9 +844,12 @@ private:
 
     float speedCurrent;
     float speedDelta;
+    float speedDelta2;
     float speedOldDelta;
 
     float reverseWhineFadeRange;
+    float reverseWhineLastSpeed;
+    float reverseWhineLastVol;
     float reverseWhineMinVol;
     float reverseWhineVol;
     float reverseWhineGlobalVol;
@@ -852,6 +857,8 @@ private:
     bool bReverseWhineEnable;
 
     float forwardWhineFadeRange;
+    float forwardWhineLastSpeed;
+    float forwardWhineLastVol;
     float forwardWhineMinVol;
     float forwardWhineVol;
     float forwardWhineGlobalVol;
@@ -868,7 +875,9 @@ private:
     bool bCurrentlyShifting;
 
     bool bAccelDirection;
+    bool bAccelDirectionSpeed;
     bool bOldDirection;
+    bool bOldDirectionSpeed;
 
     bool bLoaded;
     bool bCurrentlyLoading;
@@ -994,11 +1003,11 @@ private:
             rateOfChange = 0.0;  // Handle the case where timeElapsed is very small
         }
 
-        if (((freqDelta > 0) || (throttleAmount > 0)) && !bCurrentlyShifting)
+        if (((freqDelta2 > 0) || (throttleAmount > 0)) && !bCurrentlyShifting)
         {
             bAccelDirection = true;
         }
-        else if (freqDelta < 0)
+        else if (freqDelta2 < 0)
         {
             bAccelDirection = false;
         }
@@ -1161,6 +1170,11 @@ private:
 
     void SetPlaybackSpeed(float inSpeedMPS)
     {
+        // if (mFPSLimitMode == FrameLimiter::FPSLimitMode::FPS_REALTIME)
+        //     while (!FrameLimiter::Sync_RT());
+        // else if (mFPSLimitMode == FrameLimiter::FPSLimitMode::FPS_ACCURATE)
+        //     while (!FrameLimiter::Sync_SLP());
+
         if (!bForwardWhineEnable && !bReverseWhineEnable && !bIdleWhineEnable)
             return;
 
@@ -1170,6 +1184,7 @@ private:
         if (speedCurrent != inSpeedMPS)
         {
             speedDelta = inSpeedMPS - speedCurrent;
+            speedDelta2 = speedDelta;
             speedCurrent = inSpeedMPS;
         }
         else
@@ -1178,11 +1193,41 @@ private:
         if (speedOldDelta != speedDelta)
             speedOldDelta = speedDelta;
 
+        if (speedDelta > 0)
+        {
+            bAccelDirection = true;
+        }
+        else if (speedDelta < 0)
+        {
+            bAccelDirection = false;
+        }
+
+        // std::chrono::high_resolution_clock::time_point currentTime = std::chrono::high_resolution_clock::now();
+        // std::chrono::duration<float> timeElapsed = std::chrono::duration_cast<std::chrono::duration<float>>(currentTime - lastTimeSpeed);
+        // 
+        // if (timeElapsed.count() > 0)
+        // {
+        //     rateOfChangeSpeed = ::fabs(speedDelta2) / timeElapsed.count();
+        // }
+        // else
+        // {
+        //     rateOfChangeSpeed = 0.0;  // Handle the case where timeElapsed is very small
+        // }
+
         if (chForwardWhine)
         {
             if (bForwardWhineEnable && !bCurrentlyShifting)
             {
-                forwardWhineVol = std::clamp(cus_lerp(forwardWhineMinVol, 1.0f, inSpeedMPS / forwardWhineFadeRange), 0.0f, 1.0f);
+                if (bOldDirection != bAccelDirection)
+                {
+                    forwardWhineLastSpeed = speedCurrent;
+                    forwardWhineLastVol = forwardWhineVol;
+                }
+
+                if (bAccelDirection)
+                    forwardWhineVol = std::clamp(cus_lerp(forwardWhineMinVol, 1.0f, inSpeedMPS / (forwardWhineLastSpeed + forwardWhineFadeRange)), forwardWhineMinVol, 1.0f);
+                else
+                    forwardWhineVol = std::clamp(cus_lerp(forwardWhineLastVol, forwardWhineMinVol, (forwardWhineLastSpeed - forwardWhineFadeRange) / inSpeedMPS), forwardWhineMinVol, 1.0f);
 
 
                 BASS_ChannelSetAttribute(chForwardWhine, BASS_ATTRIB_VOL, forwardWhineVol * forwardWhineGlobalVol);
@@ -1196,7 +1241,7 @@ private:
         {
             if (bIdleWhineEnable && !bCurrentlyShifting)
             {
-                idleWhineVol = 1.0f - std::clamp(cus_lerp(idleWhineMinVol, 1.0f, inSpeedMPS / idleWhineFadeRange), 0.0f, 1.0f);
+                idleWhineVol = 1.0f - std::clamp(cus_lerp(idleWhineMinVol, 1.0f, inSpeedMPS / idleWhineFadeRange), idleWhineMinVol, 1.0f);
 
 
                 BASS_ChannelSetAttribute(chIdleWhine, BASS_ATTRIB_VOL, idleWhineVol * idleWhineGlobalVol);
@@ -1210,7 +1255,15 @@ private:
         {
             if (bReverseWhineEnable && !bCurrentlyShifting)
             {
-                reverseWhineVol = std::clamp(cus_lerp(reverseWhineMinVol, 1.0f, inSpeedMPS / reverseWhineFadeRange), 0.0f, 1.0f);
+                //if (bOldDirection != bAccelDirection)
+                //{
+                //    reverseWhineLastSpeed = speedCurrent;
+                //    reverseWhineLastVol = reverseWhineVol;
+                //}
+                //if (bAccelDirection)
+                reverseWhineVol = std::clamp(cus_lerp(reverseWhineMinVol, 1.0f, inSpeedMPS / (reverseWhineLastSpeed + reverseWhineFadeRange)), reverseWhineMinVol, 1.0f);
+                //else
+                //    reverseWhineVol = std::clamp(cus_lerp(reverseWhineLastVol, reverseWhineMinVol, inSpeedMPS / (reverseWhineLastSpeed - reverseWhineFadeRange)), reverseWhineMinVol, 1.0f);
 
                 BASS_ChannelSetAttribute(chReverseWhine, BASS_ATTRIB_VOL, reverseWhineVol * reverseWhineGlobalVol);
                 BASS_ChannelSetAttribute(chReverseWhine, BASS_ATTRIB_FREQ, calculateNewSampleRate(reverseWhineSampleRate, calculateRevWhineSemitones(inSpeedMPS)));
@@ -1218,6 +1271,9 @@ private:
             else
                 BASS_ChannelSetAttribute(chReverseWhine, BASS_ATTRIB_VOL, 0.0f);
         }
+
+        if (bOldDirection != bAccelDirection)
+            bOldDirection = bAccelDirection;
     }
 
     void ReleaseEverything()
@@ -2571,7 +2627,9 @@ public:
         XFadeDelta = 0.0f;
         curXFadeRange = 0.0f;
         bAccelDirection = true;
+        bAccelDirectionSpeed = true;
         bOldDirection = true;
+        bOldDirectionSpeed = true;
         bLoaded = false;
         bCurrentlyLoading = false;
         bFloatBuffer = false;
@@ -2602,18 +2660,23 @@ public:
 
         speedCurrent = 0.0f;
         speedDelta = 0.0f;
+        speedDelta2 = 0.0f;
         speedOldDelta = 0.0f;
 
         reverseWhineFadeRange = 36.0f;
         reverseWhineMinVol = 0.5f;
         reverseWhineVol = 1.0f;
+        reverseWhineLastVol = 0.0f;
+        reverseWhineLastSpeed = 0.0f;
         reverseWhineGlobalVol = 1.0f;
         reverseWhineSampleRate = 0.0f;
         bReverseWhineEnable = false;
 
         forwardWhineFadeRange = 3.6f;
-        forwardWhineMinVol = 0.1f;
+        forwardWhineMinVol = 0.3f;
         forwardWhineVol = 1.0f;
+        forwardWhineLastVol = 0.0f;
+        forwardWhineLastSpeed = 0.0f;
         forwardWhineGlobalVol = 1.0f;
         forwardWhineSampleRate = 0.0f;
         bForwardWhineEnable = false;
