@@ -2690,8 +2690,8 @@ public:
         reverseWhineSampleRate = 0.0f;
         bReverseWhineEnable = false;
 
-        forwardWhineFadeRange = 83.3f;
-        forwardWhineDecelFadeRange = 26.0f;
+        forwardWhineFadeRange = 36.0f;
+        forwardWhineDecelFadeRange = 18.0f;
         forwardWhineMinVol = 0.3f;
         forwardWhineVol = 1.0f;
         forwardWhineLastVol = 0.0f;
