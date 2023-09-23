@@ -2455,7 +2455,7 @@ public:
         return eqMinGainDCL;
     }
 
-    float GetEqMaxGainACL()
+    float GetEqMaxGainDCL()
     {
         if (!bLoaded && !bCurrentlyLoading)
             return 0.0f;
