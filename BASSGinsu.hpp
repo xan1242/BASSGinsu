@@ -2389,6 +2389,118 @@ public:
         return throttleAmount;
     }
 
+    void SetEqMinGainACL(float inGain)
+    {
+        if (!bLoaded && !bCurrentlyLoading)
+            return;
+        eqMinGainACL = inGain;
+    }
+
+    void SetEqMinGainDCL(float inGain)
+    {
+        if (!bLoaded && !bCurrentlyLoading)
+            return;
+        eqMinGainDCL = inGain;
+    }
+
+    void SetEqMaxGainACL(float inGain)
+    {
+        if (!bLoaded && !bCurrentlyLoading)
+            return;
+        eqMaxGainACL = inGain;
+    }
+
+    void SetEqMaxGainDCL(float inGain)
+    {
+        if (!bLoaded && !bCurrentlyLoading)
+            return;
+        eqMaxGainDCL = inGain;
+    }
+
+    float GetEqMinGainACL()
+    {
+        if (!bLoaded && !bCurrentlyLoading)
+            return 0.0f;
+        return eqMinGainACL;
+    }
+
+    float GetEqMaxGainACL()
+    {
+        if (!bLoaded && !bCurrentlyLoading)
+            return 0.0f;
+        return eqMaxGainACL;
+    }
+
+    float GetEqMinGainDCL()
+    {
+        if (!bLoaded && !bCurrentlyLoading)
+            return 0.0f;
+        return eqMinGainDCL;
+    }
+
+    float GetEqMaxGainACL()
+    {
+        if (!bLoaded && !bCurrentlyLoading)
+            return 0.0f;
+        return eqMaxGainDCL;
+    }
+
+    void SetEqFrequencyACL(float inFreq)
+    {
+        if (!bLoaded && !bCurrentlyLoading)
+            return;
+        eqFrequencyACL = inFreq;
+    }
+
+    void SetEqFrequencyDCL(float inFreq)
+    {
+        if (!bLoaded && !bCurrentlyLoading)
+            return;
+        eqFrequencyDCL = inFreq;
+    }
+
+    void SetEqBandwidthACL(float inSemitones)
+    {
+        if (!bLoaded && !bCurrentlyLoading)
+            return;
+        eqBandwidthACL = inSemitones;
+    }
+
+    void SetEqBandwidthDCL(float inSemitones)
+    {
+        if (!bLoaded && !bCurrentlyLoading)
+            return;
+        eqBandwidthDCL = inSemitones;
+    }
+
+    float GetEqFrequencyACL()
+    {
+        if (!bLoaded && !bCurrentlyLoading)
+            return 0.0f;
+        return eqFrequencyACL;
+    }
+
+    float GetEqFrequencyDCL()
+    {
+        if (!bLoaded && !bCurrentlyLoading)
+            return 0.0f;
+        return eqFrequencyDCL;
+    }
+
+    float GetEqBandwidthACL()
+    {
+        if (!bLoaded && !bCurrentlyLoading)
+            return 0.0f;
+        return eqBandwidthACL;
+    }
+
+    float GetEqBandwidthDCL()
+    {
+        if (!bLoaded && !bCurrentlyLoading)
+            return 0.0f;
+        return eqBandwidthDCL;
+    }
+
     BASSGinsuMultiStream()
     {
         mFPSLimitMode = FrameLimiter::FPSLimitMode::FPS_ACCURATE;
