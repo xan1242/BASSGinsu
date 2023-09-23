@@ -1014,7 +1014,10 @@ private:
         }
 
         if (accelStream)
+        {
             accelStream->SetFrequency(inFreq);
+            accelVol = 1.0f;
+        }
         if (decelStream && accelStream)
         {
             decelStream->SetFrequency(inFreq);
@@ -1230,11 +1233,17 @@ private:
                     forwardWhineLastVol = forwardWhineVol;
                 }
 
+                // TODO: rewrite this! it's too jittery/jank
                 if (bAccelDirection)
-                    forwardWhineVol = std::clamp(cus_lerp(forwardWhineMinVol, 1.0f, inSpeedMPS / (forwardWhineLastSpeed + forwardWhineFadeRange)), forwardWhineMinVol, 1.0f);
+                {
+                    float d = std::clamp(inSpeedMPS / (forwardWhineLastSpeed + forwardWhineFadeRange), 0.0f, 1.0f);
+                    forwardWhineVol = cus_lerp(forwardWhineLastVol, 1.0f, d);
+                }
                 else
-                    forwardWhineVol = std::clamp(cus_lerp(forwardWhineLastVol, forwardWhineMinVol, (forwardWhineLastSpeed - forwardWhineDecelFadeRange) / inSpeedMPS), forwardWhineMinVol, 1.0f);
-
+                {
+                    float d = std::clamp((forwardWhineLastSpeed - forwardWhineDecelFadeRange) / inSpeedMPS, 0.0f, 1.0f);
+                    forwardWhineVol = cus_lerp(forwardWhineLastVol, forwardWhineMinVol, d);
+                }
 
                 BASS_ChannelSetAttribute(chForwardWhine, BASS_ATTRIB_VOL, forwardWhineVol * forwardWhineGlobalVol);
                 BASS_ChannelSetAttribute(chForwardWhine, BASS_ATTRIB_FREQ, calculateNewSampleRate(forwardWhineSampleRate, calculateFwdWhineSemitones(inSpeedMPS)));
