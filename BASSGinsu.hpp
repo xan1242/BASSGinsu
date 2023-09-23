@@ -2279,6 +2279,14 @@ public:
             reverseWhineFadeRange = inSpeedMPS;
     }
 
+    void SetForwardWhineFadeRange(float inSpeedMPS)
+    {
+        if (!bLoaded && !bCurrentlyLoading)
+            return;
+        if (chForwardWhine)
+            forwardWhineFadeRange = inSpeedMPS;
+    }
+
     void SetIdleWhineFadeRange(float inSpeedMPS)
     {
         if (!bLoaded && !bCurrentlyLoading)
@@ -2294,6 +2302,15 @@ public:
         if (!chReverseWhine)
             return 0.0f;
         return reverseWhineFadeRange;
+    }
+
+    float GetForwardWhineFadeRange()
+    {
+        if (!bLoaded && !bCurrentlyLoading)
+            return 0.0f;
+        if (!chForwardWhine)
+            return 0.0f;
+        return forwardWhineFadeRange;
     }
 
     float GetIdleWhineFadeRange()
