@@ -1228,7 +1228,7 @@ private:
                 if (bAccelDirection)
                     forwardWhineVol = std::clamp(cus_lerp(forwardWhineMinVol, 1.0f, inSpeedMPS / (forwardWhineLastSpeed + forwardWhineFadeRange)), forwardWhineMinVol, 1.0f);
                 else
-                    forwardWhineVol = std::clamp(cus_lerp(forwardWhineLastVol, forwardWhineMinVol, (forwardWhineLastSpeed - forwardWhineFadeRange) / inSpeedMPS), forwardWhineMinVol, 1.0f);
+                    forwardWhineVol = std::clamp(cus_lerp(forwardWhineLastVol, forwardWhineMinVol, (forwardWhineLastSpeed - forwardWhineDecelFadeRange) / inSpeedMPS), forwardWhineMinVol, 1.0f);
 
 
                 BASS_ChannelSetAttribute(chForwardWhine, BASS_ATTRIB_VOL, forwardWhineVol * forwardWhineGlobalVol);
