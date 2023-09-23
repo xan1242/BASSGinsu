@@ -1013,8 +1013,9 @@ private:
             bAccelDirection = false;
         }
 
-        accelStream->SetFrequency(inFreq);
-        if (decelStream)
+        if (accelStream)
+            accelStream->SetFrequency(inFreq);
+        if (decelStream && accelStream)
         {
             decelStream->SetFrequency(inFreq);
 
@@ -1072,7 +1073,8 @@ private:
             decelVol = std::clamp(decelVol, 0.0f, 1.0f);
             accelVol = std::clamp(accelVol, 0.0f, 1.0f);
         }
-
+        else if (decelStream)
+            decelStream->SetFrequency(inFreq);
 
         // TODO: make this a teeny bit better; add some accumulator that will fill up from redline start and add up quicker closer it is to the max RPM
         // as the accumulator gets closer to max, louder the redline sound is
@@ -1112,61 +1114,64 @@ private:
 
             BASS_ChannelSetAttribute(chIdle, BASS_ATTRIB_VOL, idleVol);
         }
-
-        float ratePct = std::clamp(rateOfChange / rateRPMTarget, 0.0f, 1.0f);
-        float rateVolCalc = std::clamp(cus_lerp(rateMinVol, 1.0f, linearToLogarithmic(ratePct, rateVolCurve)), 0.0f, 1.0f);
-
-        if (bAccelDirection)
+        if (accelStream || decelStream)
         {
-            float d = std::clamp(freqCurrent / curRateRPMXFadeTarget, 0.0f, 1.0f);
-            rateVol = cus_lerp(rateOldVol, rateVolCalc, d);
+            float ratePct = std::clamp(rateOfChange / rateRPMTarget, 0.0f, 1.0f);
+            float rateVolCalc = std::clamp(cus_lerp(rateMinVol, 1.0f, linearToLogarithmic(ratePct, rateVolCurve)), 0.0f, 1.0f);
+
+            if (bAccelDirection)
+            {
+                float d = std::clamp(freqCurrent / curRateRPMXFadeTarget, 0.0f, 1.0f);
+                rateVol = cus_lerp(rateOldVol, rateVolCalc, d);
+            }
+            else
+            {
+                float d = std::clamp(curRateRPMXFadeTarget / freqCurrent, 0.0f, 1.0f);
+                rateVol = cus_lerp(rateOldVol, rateVolCalc, d);
+            }
+
+            // account for the throttle
+            rateVol = cus_lerp(rateVol, 1.0, throttleAmount);
+
+            float rateEqAmountCalc = 0;
+
+            if (rateEqCurve <= 1.0f)
+                rateEqAmountCalc = std::clamp(cus_lerp(0.0f, 1.0f, ratePct), 0.0f, 1.0f);
+            else
+                rateEqAmountCalc = std::clamp(cus_lerp(0.0f, 1.0f, linearToLogarithmic(ratePct, rateEqCurve)), 0.0f, 1.0f);
+
+            if (bAccelDirection)
+            {
+                float d = std::clamp(freqCurrent / curRateEqRPMXFadeTarget, 0.0f, 1.0f);
+                rateEqAmount = cus_lerp(rateEqOldAmount, rateEqAmountCalc, d);
+            }
+            else
+            {
+                float d = std::clamp(curRateEqRPMXFadeTarget / freqCurrent, 0.0f, 1.0f);
+                rateEqAmount = cus_lerp(rateEqOldAmount, rateEqAmountCalc, d);
+            }
+
+            // account for the throttle
+            rateEqAmount = cus_lerp(rateEqAmount, 1.0, throttleAmount);
+
+            if (decelStream)
+            {
+                decelVol *= rateVol;
+                eqDCL.fGain = cus_lerp(eqMinGainDCL, eqMaxGainDCL, rateEqAmount);
+                BASS_FXSetParameters(fxDCL, &eqDCL);
+                decelStream->SetVolume(decelVol * decelGlobalVol);
+            }
+
+            if (accelStream)
+            {
+                accelVol *= rateVol;
+                eqACL.fGain = cus_lerp(eqMinGainACL, eqMaxGainACL, rateEqAmount);
+                BASS_FXSetParameters(fxACL, &eqACL);
+                accelStream->SetVolume(accelVol * accelGlobalVol);
+            }
         }
-        else
-        {
-            float d = std::clamp(curRateRPMXFadeTarget / freqCurrent, 0.0f, 1.0f);
-            rateVol = cus_lerp(rateOldVol, rateVolCalc, d);
-        }
-
-        // account for the throttle
-        rateVol = cus_lerp(rateVol, 1.0, throttleAmount);
-
-        float rateEqAmountCalc = 0;
-
-        if (rateEqCurve <= 1.0f)
-            rateEqAmountCalc = std::clamp(cus_lerp(0.0f, 1.0f, ratePct), 0.0f, 1.0f);
-        else
-            rateEqAmountCalc = std::clamp(cus_lerp(0.0f, 1.0f, linearToLogarithmic(ratePct, rateEqCurve)), 0.0f, 1.0f);
-
-        if (bAccelDirection)
-        {
-            float d = std::clamp(freqCurrent / curRateEqRPMXFadeTarget, 0.0f, 1.0f);
-            rateEqAmount = cus_lerp(rateEqOldAmount, rateEqAmountCalc, d);
-        }
-        else
-        {
-            float d = std::clamp(curRateEqRPMXFadeTarget / freqCurrent, 0.0f, 1.0f);
-            rateEqAmount = cus_lerp(rateEqOldAmount, rateEqAmountCalc, d);
-        }
-
-        // account for the throttle
-        rateEqAmount = cus_lerp(rateEqAmount, 1.0, throttleAmount);
-
-        eqACL.fGain = cus_lerp(eqMinGainACL, eqMaxGainACL, rateEqAmount);
-
-        if (decelStream)
-        {
-            decelVol *= rateVol;
-            eqDCL.fGain = cus_lerp(eqMinGainDCL, eqMaxGainDCL, rateEqAmount);
-            BASS_FXSetParameters(fxDCL, &eqDCL);
-            decelStream->SetVolume(decelVol * decelGlobalVol);
-        }
-
-        accelVol *= rateVol;
 
         lastTime = currentTime;
-
-        BASS_FXSetParameters(fxACL, &eqACL);
-        accelStream->SetVolume(accelVol * accelGlobalVol);
     }
 
     void SetPlaybackSpeed(float inSpeedMPS)
@@ -1329,11 +1334,14 @@ public:
         bFloatBuffer = bIsFloatBuffer;
         bCurrentlyLoading = true;
 
-        accelStream = CreateStream(accelGinPath, bIsFloatBuffer);
-        if (accelStream == nullptr)
+        if (!accelGinPath.empty() && std::filesystem::exists(accelGinPath))
         {
-            bCurrentlyLoading = false;
-            return false;
+            accelStream = CreateStream(accelGinPath, bIsFloatBuffer);
+            if (accelStream == nullptr)
+            {
+                bCurrentlyLoading = false;
+                return false;
+            }
         }
 
         if (!decelGinPath.empty() && std::filesystem::exists(decelGinPath))
@@ -1459,11 +1467,14 @@ public:
         }
 
         // plug the streams together
-        if (BASS_Mixer_StreamAddChannel(gStream, accelStream->GetStreamHandle(), BASS_MIXER_CHAN_NORAMPIN) == FALSE)
+        if (accelStream)
         {
-            ReleaseEverything();
-            bCurrentlyLoading = false;
-            return false;
+            if (BASS_Mixer_StreamAddChannel(gStream, accelStream->GetStreamHandle(), BASS_MIXER_CHAN_NORAMPIN) == FALSE)
+            {
+                ReleaseEverything();
+                bCurrentlyLoading = false;
+                return false;
+            }
         }
 
         if (decelStream)
@@ -1527,16 +1538,20 @@ public:
         }
 
         // accelStream takes precedence, so decelStream is silent first
-        accelStream->SetVolume(accelVol);
+        if (accelStream)
+        {
+            accelStream->SetVolume(accelVol);
+            freqMin = accelStream->GetMinFrequency();
+            freqMax = accelStream->GetMaxFrequency();
+        }
         if (decelStream)
             decelStream->SetVolume(decelVol);
 
         BASS_ChannelSetAttribute(gStream, BASS_ATTRIB_BUFFER, 0);
 
-        freqMin = accelStream->GetMinFrequency();
-        freqMax = accelStream->GetMaxFrequency();
 
-        if (decelStream)
+
+        if (decelStream && accelStream)
         {
             SetAccelXFadeRatio(AccelXFadeRPMRatio);
             SetDecelXFadeRatio(DecelXFadeRPMRatio);
@@ -1574,10 +1589,13 @@ public:
         }
 
         // set up BASS_FX
-        fxACL = BASS_ChannelSetFX(accelStream->GetStreamHandle(), BASS_FX_DX8_PARAMEQ, 0);
-        if (fxACL)
+        if (accelStream)
         {
-            BASS_FXSetParameters(fxACL, &eqACL);
+            fxACL = BASS_ChannelSetFX(accelStream->GetStreamHandle(), BASS_FX_DX8_PARAMEQ, 0);
+            if (fxACL)
+            {
+                BASS_FXSetParameters(fxACL, &eqACL);
+            }
         }
 
         if (decelStream)
