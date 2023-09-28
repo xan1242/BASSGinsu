@@ -1115,7 +1115,7 @@ private:
 
                 float d1 = (freqMax - redlineStart) * s;
                 float d2 = redlineStart + d1;
-                float d3 = std::clamp(d2 / freqMax, 0.0f, 1.0f);
+                float d3 = std::clamp((inFreq - d2) / (freqMax - d2), 0.0f, 1.0f);
                 float fT = exponentialInterpolation(redlineFadeTime, 0.0f, d3);
 
                 std::chrono::milliseconds duration = std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - redlineTime);
@@ -1133,7 +1133,7 @@ private:
 
                 float d1 = (freqMax - redlineStart) * s;
                 float d2 = redlineStart + d1;
-                float d3 = std::clamp(d2 / freqMax, 0.0f, 1.0f);
+                float d3 = std::clamp((inFreq - d2) / (freqMax - d2), 0.0f, 1.0f);
                 float fT = exponentialInterpolation(redlineFadeTime, 0.0f, d3);
 
                 std::chrono::milliseconds duration = std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - redlineTime);
