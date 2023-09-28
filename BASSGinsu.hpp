@@ -2786,7 +2786,7 @@ public:
         redlineGlobalVol = 1.0f;
         redlinePitch = 1.0f;
         redlineSampleRate = 0.0f;
-        redlineSmackStart = 0.25f;
+        redlineSmackStart = 0.5f;
         redlineTime = std::chrono::high_resolution_clock::now();
         redlineFadeTime = 100;
         bNeedToSetRedlineTimeIn = false;
