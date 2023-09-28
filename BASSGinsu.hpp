@@ -1099,8 +1099,15 @@ private:
                     bNeedToSetRedlineTimeIn = false;
                 }
 
+                float d1 = (freqMax - redlineStart) * s;
+                float d2 = redlineStart + d1;
+                float d3 = std::clamp(d2 / freqMax, 0.0f, 1.0f);
+
+                float fT = (float)redlineFadeTime;
+                fT = cus_lerp((float)redlineFadeTime, 0.0f, d3);
+
                 std::chrono::milliseconds duration = std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - redlineTime);
-                redlineVol = (float)(duration.count()) / (float)redlineFadeTime;
+                redlineVol = (float)(duration.count()) / fT;
                 redlineVol = std::clamp(redlineVol, 0.0f, 1.0f);
             }
             else if (d > 0)
