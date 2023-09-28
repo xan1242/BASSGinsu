@@ -970,6 +970,20 @@ private:
         return log10f(1.0 + (b - 1.0) * x) / log10f(b);
     }
 
+
+    float exponentialInterpolation(float a, float b, float t) {
+        if (t <= 0.0) {
+            return a;
+        }
+        else if (t >= 1.0) {
+            return b;
+        }
+        else {
+            return a * std::powf(b / a, t);
+        }
+    }
+
+
     // TODO: make this a bit better - the bigger the frequency delta - the louder the sounds should play
     void SetPlaybackFrequency(float inFreq)
     {
@@ -1102,9 +1116,7 @@ private:
                 float d1 = (freqMax - redlineStart) * s;
                 float d2 = redlineStart + d1;
                 float d3 = std::clamp(d2 / freqMax, 0.0f, 1.0f);
-
-                float fT = (float)redlineFadeTime;
-                fT = cus_lerp((float)redlineFadeTime, 0.0f, d3);
+                float fT = exponentialInterpolation(redlineFadeTime, 0.0f, d3);
 
                 std::chrono::milliseconds duration = std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - redlineTime);
                 redlineVol = (float)(duration.count()) / fT;
@@ -1119,8 +1131,13 @@ private:
                     bNeedToSetRedlineTimeOut = false;
                 }
 
+                float d1 = (freqMax - redlineStart) * s;
+                float d2 = redlineStart + d1;
+                float d3 = std::clamp(d2 / freqMax, 0.0f, 1.0f);
+                float fT = exponentialInterpolation(redlineFadeTime, 0.0f, d3);
+
                 std::chrono::milliseconds duration = std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - redlineTime);
-                redlineVol = 1.0f - (float)(duration.count()) / (float)redlineFadeTime;
+                redlineVol = 1.0f - (float)(duration.count()) / fT;
                 redlineVol = std::clamp(redlineVol, 0.0f, 1.0f);
             }
             else
