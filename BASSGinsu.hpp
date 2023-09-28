@@ -971,17 +971,17 @@ private:
     }
 
 
-    float exponentialInterpolation(float a, float b, float t) {
-        if (t <= 0.0) {
-            return a;
-        }
-        else if (t >= 1.0) {
-            return b;
-        }
-        else {
-            return a * std::powf(b / a, t);
-        }
-    }
+    // float exponentialInterpolation(float a, float b, float t) {
+    //     if (t <= 0.0) {
+    //         return a;
+    //     }
+    //     else if (t >= 1.0) {
+    //         return b;
+    //     }
+    //     else {
+    //         return a * std::powf(b / a, t);
+    //     }
+    // }
 
 
     // TODO: make this a bit better - the bigger the frequency delta - the louder the sounds should play
@@ -1116,7 +1116,7 @@ private:
                 float d1 = (freqMax - redlineStart) * s;
                 float d2 = redlineStart + d1;
                 float d3 = std::clamp((inFreq - d2) / (freqMax - d2), 0.0f, 1.0f);
-                float fT = exponentialInterpolation((float)redlineFadeTime, 0.00000001f, d3);
+                float fT = cus_lerp((float)redlineFadeTime, 0.00000001f, d3);
 
                 std::chrono::milliseconds duration = std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - redlineTime);
                 redlineVol = (float)(duration.count()) / fT;
