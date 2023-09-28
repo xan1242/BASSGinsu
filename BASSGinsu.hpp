@@ -835,6 +835,11 @@ private:
     float redlineGlobalVol;
     float redlinePitch;
     float redlineSampleRate;
+    float redlineSmackStart;
+    std::chrono::high_resolution_clock::time_point redlineTime;
+    uint32_t redlineFadeTime;
+    bool bNeedToSetRedlineTimeIn;
+    bool bNeedToSetRedlineTimeOut;
 
     float idleEnd;
     float idleVol;
@@ -1079,14 +1084,42 @@ private:
         else if (decelStream)
             decelStream->SetFrequency(inFreq);
 
-        // TODO: make this a teeny bit better; add some accumulator that will fill up from redline start and add up quicker closer it is to the max RPM
-        // as the accumulator gets closer to max, louder the redline sound is
         if (chRedline)
         {
             float d = (inFreq - redlineStart) / (freqMax - redlineStart);
-            redlineVol = d;
-            redlineVol = std::clamp(redlineVol, 0.0f, 1.0f);
-            redlineVol *= redlineGlobalVol;
+            d = std::clamp(d, 0.0f, 1.0f);
+            float s = 1.0f - redlineSmackStart;
+
+            if (d >= s)
+            {
+                bNeedToSetRedlineTimeOut = true;
+                if (bNeedToSetRedlineTimeIn)
+                {
+                    redlineTime = currentTime;
+                    bNeedToSetRedlineTimeIn = false;
+                }
+
+                std::chrono::milliseconds duration = std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - redlineTime);
+                redlineVol = (float)(duration.count()) / (float)redlineFadeTime;
+                redlineVol = std::clamp(redlineVol, 0.0f, 1.0f);
+            }
+            else if (d > 0)
+            {
+                bNeedToSetRedlineTimeIn = true;
+                if (bNeedToSetRedlineTimeOut)
+                {
+                    redlineTime = currentTime;
+                    bNeedToSetRedlineTimeOut = false;
+                }
+
+                std::chrono::milliseconds duration = std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - redlineTime);
+                redlineVol = 1.0f - (float)(duration.count()) / (float)redlineFadeTime;
+                redlineVol = std::clamp(redlineVol, 0.0f, 1.0f);
+            }
+            else
+            {
+                redlineVol = 0;
+            }
 
             float sensitivityFactor = 1.0f - ::powf(redlineVol, 2);
 
@@ -1096,6 +1129,7 @@ private:
             decelVol = std::clamp(decelVol, 0.0f, 1.0f);
             accelVol = std::clamp(accelVol, 0.0f, 1.0f);
 
+            redlineVol *= redlineGlobalVol;
             BASS_ChannelSetAttribute(chRedline, BASS_ATTRIB_VOL, redlineVol);
         }
 
@@ -1701,6 +1735,26 @@ public:
         redlineGlobalVol = std::clamp(inVol, 0.0f, 1.0f);
     }
 
+    void SetRedlineFadeTime(uint32_t timeMS)
+    {
+        if (!bLoaded && !bCurrentlyLoading)
+            return;
+        if (!chRedline)
+            return;
+
+        redlineFadeTime = timeMS;
+    }
+
+    float GetRedlineFadeTime(uint32_t timeMS)
+    {
+        if (!bLoaded && !bCurrentlyLoading)
+            return;
+        if (!chRedline)
+            return;
+
+        return redlineFadeTime;
+    }
+
     // Set the volume of the idle sound
     void SetIdleVolume(float inVol)
     {
@@ -1906,6 +1960,32 @@ public:
         redlineStart = inFreq;
 
         return;
+    }
+
+    float GetRedlineStart()
+    {
+        if (!bLoaded && !bCurrentlyLoading)
+            return;
+
+        return redlineStart;
+    }
+
+    void SetRedlineSmackStart(float inPct)
+    {
+        if (!bLoaded && !bCurrentlyLoading)
+            return;
+
+        redlineSmackStart = inPct;
+
+        return;
+    }
+
+    float GetRedlineSmackStart()
+    {
+        if (!bLoaded && !bCurrentlyLoading)
+            return;
+
+        return redlineSmackStart;
     }
 
     // Sets at which RPM the idle sound should start fading out
@@ -2706,6 +2786,11 @@ public:
         redlineGlobalVol = 1.0f;
         redlinePitch = 1.0f;
         redlineSampleRate = 0.0f;
+        redlineSmackStart = 0.25f;
+        redlineTime = std::chrono::high_resolution_clock::now();
+        redlineFadeTime = 100;
+        bNeedToSetRedlineTimeIn = false;
+        bNeedToSetRedlineTimeOut = false;
 
         idleEnd = 0.0f;
         idleVol = 0.0f;
