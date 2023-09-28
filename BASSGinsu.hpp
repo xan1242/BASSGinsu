@@ -1748,9 +1748,9 @@ public:
     float GetRedlineFadeTime(uint32_t timeMS)
     {
         if (!bLoaded && !bCurrentlyLoading)
-            return;
+            return 0.0f;
         if (!chRedline)
-            return;
+            return 0.0f;
 
         return redlineFadeTime;
     }
@@ -1965,7 +1965,7 @@ public:
     float GetRedlineStart()
     {
         if (!bLoaded && !bCurrentlyLoading)
-            return;
+            return 0.0f;
 
         return redlineStart;
     }
@@ -1983,7 +1983,7 @@ public:
     float GetRedlineSmackStart()
     {
         if (!bLoaded && !bCurrentlyLoading)
-            return;
+            return 0.0f;
 
         return redlineSmackStart;
     }
