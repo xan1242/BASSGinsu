@@ -840,6 +840,8 @@ private:
     uint32_t redlineFadeTime;
     bool bNeedToSetRedlineTimeIn;
     bool bNeedToSetRedlineTimeOut;
+    float redlineAccelMinVol;
+    float redlineDecelMinVol;
 
     float idleEnd;
     float idleVol;
@@ -1150,8 +1152,8 @@ private:
             decelVol *= sensitivityFactor;
             accelVol *= sensitivityFactor;
 
-            decelVol = std::clamp(decelVol, 0.0f, 1.0f);
-            accelVol = std::clamp(accelVol, 0.0f, 1.0f);
+            decelVol = std::clamp(decelVol, redlineDecelMinVol, 1.0f);
+            accelVol = std::clamp(accelVol, redlineAccelMinVol, 1.0f);
 
             redlineVol *= redlineGlobalVol;
             BASS_ChannelSetAttribute(chRedline, BASS_ATTRIB_VOL, redlineVol);
@@ -1994,6 +1996,42 @@ public:
         return redlineStart;
     }
 
+    void SetRedlineAccelMinVol(float inVol)
+    {
+        if (!bLoaded && !bCurrentlyLoading)
+            return;
+
+        redlineAccelMinVol = inVol;
+
+        return;
+    }
+
+    float GetRedlineAccelMinVol()
+    {
+        if (!bLoaded && !bCurrentlyLoading)
+            return 0.0f;
+
+        return redlineAccelMinVol;
+    }
+
+    void SetRedlineDecelMinVol(float inVol)
+    {
+        if (!bLoaded && !bCurrentlyLoading)
+            return;
+
+        redlineDecelMinVol = inVol;
+
+        return;
+    }
+
+    float GetRedlineDecelMinVol()
+    {
+        if (!bLoaded && !bCurrentlyLoading)
+            return 0.0f;
+
+        return redlineDecelMinVol;
+    }
+
     void SetRedlineSmackStart(float inPct)
     {
         if (!bLoaded && !bCurrentlyLoading)
@@ -2815,6 +2853,8 @@ public:
         redlineFadeTime = 100;
         bNeedToSetRedlineTimeIn = false;
         bNeedToSetRedlineTimeOut = false;
+        redlineDecelMinVol = 0.5f;
+        redlineAccelMinVol = 0.5f;
 
         idleEnd = 0.0f;
         idleVol = 0.0f;
