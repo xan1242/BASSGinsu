@@ -1102,7 +1102,7 @@ private:
 
         if (chRedline)
         {
-            if (throttleAmount > 0.1)
+            if ((throttleAmount > 0.1) && !bCurrentlyShifting)
             {
                 float d = (inFreq - redlineStart) / (freqMax - redlineStart);
                 d = std::clamp(d, 0.0f, 1.0f);
