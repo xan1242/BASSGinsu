@@ -1767,6 +1767,16 @@ public:
         SetPlaybackFrequency(inFreq);
     }
 
+    void SetFrequencyFromPercentage(float inFreqPct)
+    {
+        if (!bLoaded && !bCurrentlyLoading)
+            return;
+
+        float f = cus_lerp(freqMin, freqMax, inFreqPct);
+
+        SetPlaybackFrequency(f);
+    }
+
     float GetFrequency()
     {
         if (!bLoaded && !bCurrentlyLoading)
