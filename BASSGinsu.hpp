@@ -1102,65 +1102,64 @@ private:
 
         if (chRedline)
         {
-            if ((throttleAmount > 0.1) && !bCurrentlyShifting)
+            float d = (inFreq - redlineStart) / (freqMax - redlineStart);
+            d = std::clamp(d, 0.0f, 1.0f);
+            float s = 1.0f - redlineSmackStart;
+
+            if (d >= s)
             {
-                float d = (inFreq - redlineStart) / (freqMax - redlineStart);
-                d = std::clamp(d, 0.0f, 1.0f);
-                float s = 1.0f - redlineSmackStart;
-
-                if (d >= s)
+                bNeedToSetRedlineTimeOut = true;
+                if (bNeedToSetRedlineTimeIn)
                 {
-                    bNeedToSetRedlineTimeOut = true;
-                    if (bNeedToSetRedlineTimeIn)
-                    {
-                        redlineTime = currentTime;
-                        bNeedToSetRedlineTimeIn = false;
-                    }
+                    redlineTime = currentTime;
+                    bNeedToSetRedlineTimeIn = false;
 
-                    float d1 = (freqMax - redlineStart) * s;
-                    float d2 = redlineStart + d1;
-                    float d3 = std::clamp((inFreq - d2) / (freqMax - d2), 0.0f, 1.0f);
-                    float fT = cus_lerp((float)redlineFadeTime, 0.00000001f, d3);
-
-                    std::chrono::milliseconds duration = std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - redlineTime);
-                    redlineVol = (float)(duration.count()) / fT;
-                    redlineVol = std::clamp(redlineVol, 0.0f, 1.0f);
-                }
-                else if (d > 0)
-                {
-                    bNeedToSetRedlineTimeIn = true;
-                    if (bNeedToSetRedlineTimeOut)
-                    {
-                        redlineTime = currentTime;
-                        bNeedToSetRedlineTimeOut = false;
-                    }
-
-                    float d1 = (freqMax - redlineStart) * s;
-                    float d2 = redlineStart + d1;
-                    float d3 = std::clamp((inFreq - d2) / (freqMax - d2), 0.0f, 1.0f);
-                    float fT = cus_lerp((float)redlineFadeTime, 0.00000001f, d3);
-
-                    std::chrono::milliseconds duration = std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - redlineTime);
-                    redlineVol = 1.0f - (float)(duration.count()) / fT;
-                    redlineVol = std::clamp(redlineVol, 0.0f, 1.0f);
-                }
-                else
-                {
-                    redlineVol = 0;
                 }
 
-                float sensitivityFactor = 1.0f - ::powf(redlineVol, 2);
+                float d1 = (freqMax - redlineStart) * s;
+                float d2 = redlineStart + d1;
+                float d3 = std::clamp((inFreq - d2) / (freqMax - d2), 0.0f, 1.0f);
+                float fT = cus_lerp((float)redlineFadeTime, 0.0f, d3);
 
-                float newDecelVol = std::clamp(decelVol * sensitivityFactor, redlineDecelMinVol, 1.0f);
-                float newAccelVol = std::clamp(accelVol * sensitivityFactor, redlineAccelMinVol, 1.0f);
+                std::chrono::milliseconds duration = std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - redlineTime);
+                redlineVol = (float)(duration.count()) / fT;
+                redlineVol = std::clamp(redlineVol, 0.0f, 1.0f);
+            }
+            else if (d > 0)
+            {
+                bNeedToSetRedlineTimeIn = true;
+                if (bNeedToSetRedlineTimeOut)
+                {
+                    redlineTime = currentTime;
+                    bNeedToSetRedlineTimeOut = false;
+                }
 
-                decelVol *= newDecelVol;
-                accelVol *= newAccelVol;
+                float d1 = (freqMax - redlineStart) * s;
+                float d2 = redlineStart + d1;
+                float d3 = std::clamp((inFreq - d2) / (freqMax - d2), 0.0f, 1.0f);
+                float fT = cus_lerp((float)redlineFadeTime, 0.0f, d3);
 
-                redlineVol *= redlineGlobalVol;
+                std::chrono::milliseconds duration = std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - redlineTime);
+                redlineVol = 1.0f - (float)(duration.count()) / fT;
+                redlineVol = std::clamp(redlineVol, 0.0f, 1.0f);
             }
             else
+            {
                 redlineVol = 0;
+            }
+
+            if ((throttleAmount > 0.1) || bCurrentlyShifting)
+                redlineVol = 0;
+
+            float sensitivityFactor = 1.0f - ::powf(redlineVol, 2);
+
+            float newDecelVol = std::clamp(decelVol * sensitivityFactor, redlineDecelMinVol, 1.0f);
+            float newAccelVol = std::clamp(accelVol * sensitivityFactor, redlineAccelMinVol, 1.0f);
+
+            decelVol *= newDecelVol;
+            accelVol *= newAccelVol;
+
+            redlineVol *= redlineGlobalVol;
 
             BASS_ChannelSetAttribute(chRedline, BASS_ATTRIB_VOL, redlineVol);
         }
