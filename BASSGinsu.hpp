@@ -1148,7 +1148,7 @@ private:
                 redlineVol = 0;
             }
 
-            if ((throttleAmount > 0.1) || bCurrentlyShifting)
+            if ((throttleAmount < 0.1) || bCurrentlyShifting)
                 redlineVol = 0;
 
             float sensitivityFactor = 1.0f - ::powf(redlineVol, 2);
