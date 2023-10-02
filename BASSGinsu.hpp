@@ -770,10 +770,10 @@ private:
 
     FrameLimiter::FPSLimitMode mFPSLimitMode;
     std::chrono::high_resolution_clock::time_point lastTime;
-    //std::chrono::high_resolution_clock::time_point lastTimeSpeed;
     double FPSLimit;
 
     float freqCurrent;
+    float freqOld;
     float freqDelta;
     float freqDelta2;
     float freqOldDelta;
@@ -1057,70 +1057,45 @@ private:
             {
                 rateOldVol = rateVol;
                 rateEqOldAmount = rateEqAmount;
-                
 
+                freqOld = freqCurrent;
                 if (bAccelDirection)
                 {
-                    curRPMXFadeTarget = freqCurrent + AccelXFadeRPMRange;
-                    curRateRPMXFadeTarget = freqCurrent + rateAccelXFadeRPMRange;
-                    curRateEqRPMXFadeTarget = freqCurrent + rateAccelEqXFadeRPMRange;
+                    curRPMXFadeTarget = freqOld + AccelXFadeRPMRange;
+                    curRateRPMXFadeTarget = freqOld + rateAccelXFadeRPMRange;
+                    curRateEqRPMXFadeTarget = freqOld + rateAccelEqXFadeRPMRange;
                 }
                 else
                 {
-                    curRPMXFadeTarget = freqCurrent - DecelXFadeRPMRange;
-                    curRateRPMXFadeTarget = freqCurrent - rateDecelXFadeRPMRange;
-                    curRateEqRPMXFadeTarget = freqCurrent - rateDecelEqXFadeRPMRange;
+                    curRPMXFadeTarget = freqOld - DecelXFadeRPMRange;
+                    curRateRPMXFadeTarget = freqOld - rateDecelXFadeRPMRange;
+                    curRateEqRPMXFadeTarget = freqOld - rateDecelEqXFadeRPMRange;
                 }
 
                 bOldDirection = bAccelDirection;
             }
 
+            constexpr float XFadeOverlap = 0.1;
+
             if (bAccelDirection)
             {
-                float d = std::clamp(freqCurrent / curRPMXFadeTarget, 0.0f, 1.0f);
+                float d = (freqCurrent - freqOld) / (curRPMXFadeTarget - freqOld);
+                d = std::clamp(d, 0.0f, 1.0f);
                 accelVol *= d;
                 decelVol *= 1.0f - d;
-
             }
             else
             {
-                float d = std::clamp(curRPMXFadeTarget / freqCurrent, 0.0f, 1.0f);
+                float d = (freqOld - freqCurrent) / (freqOld - curRPMXFadeTarget);
+                d = std::clamp(d, 0.0f, 1.0f);
                 accelVol *= 1.0f - d;
                 decelVol *= d;
             }
-
-            // TODO: fix this - both are 100% for some reason
-            //float dA = std::clamp(freqCurrent / curRPMXFadeTarget, 0.0f, 1.0f);
-            //float dD = std::clamp(freqCurrent / curRPMXFadeTargetDCL, 0.0f, 1.0f);
-            //
-            //fadeVolACL = dA;
-            //fadeVolDCL = dD;
-            //
-            //float dclDist = (inFreq - decelStream->GetMinFrequency()) / (decelStream->GetMaxFrequency() - decelStream->GetMinFrequency());
-            //
-            //constexpr float dclFadeStartPoint = 0.2f;
-            //if (dclDist <= dclFadeStartPoint)
-            //{
-            //    float d1 = (decelStream->GetMaxFrequency() - decelStream->GetMinFrequency()) * dclFadeStartPoint;
-            //    float d2 = (inFreq - decelStream->GetMinFrequency()) / d1;
-            //    float aclDist = 1.0f - d2;
-            //
-            //    fadeVolACL = cus_lerp(fadeVolACL, 1.0f, aclDist);
-            //    fadeVolDCL = cus_lerp(fadeVolDCL, 0.0f, aclDist);
-            //}
-            //
-            //fadeVolACL = std::clamp(fadeVolACL, 0.0f, 1.0f);
-            //fadeVolDCL = std::clamp(fadeVolDCL, 0.0f, 1.0f);
-            //
-            //accelVol *= fadeVolACL;
-            //decelVol *= fadeVolDCL;
 
             float lT = linearToLogarithmic(throttleAmount, throttleCurve);
             accelVol = cus_lerp(accelVol, 1.0f, lT);
             decelVol = cus_lerp(decelVol, 0.0f, lT);
 
-
-            //decelVol *= 1.0f - linearToLogarithmic(throttleAmount, throttleCurve);
             if (!bAccelDirection)
             {
                 constexpr float dclFadePoint = 0.1;
@@ -1132,7 +1107,7 @@ private:
                     d = 1.0f - d;
 
                     float aD = std::clamp(d, 0.0f, 1.0f);
-                    accelVol = cus_lerp(accelVol, decelVol, aD);
+                    accelVol = cus_lerp(accelVol, 1.0f, aD);
 
                     if (d >= 1.0f)
                     {
@@ -1140,49 +1115,7 @@ private:
                         decelVol = cus_lerp(0.0f, decelVol, 1.0f - dD);
                     }
                 }
-
-                // as we go closer to the min frequency of decel gin, we crossfade back into accel gin
-                //float dclDist = (inFreq - decelStream->GetMinFrequency()) / (decelStream->GetMaxFrequency() - decelStream->GetMinFrequency());
-                //dclDist = std::clamp(dclDist, 0.0f, 1.0f);
-                //float aclDist = 1.0f - dclDist;
-                //if (aclDist > 0.0f)
-                //{
-                //    accelVol = cus_lerp(accelVol, decelVol, aclDist);
-                //    decelVol = cus_lerp(0.0f, decelVol, dclDist);
-                //}
             }
-
-
-
-            // if (bAccelDirection)
-            //{
-            //    if (curXFadeRange > AccelXFadeRPMRange)
-            //        curXFadeRange = AccelXFadeRPMRange;
-            //
-            //    float d = curXFadeRange / AccelXFadeRPMRange;
-            //    accelVol = d;
-            //    decelVol = 1.0f - d;
-            //}
-            // else
-            // {
-            //     if (curXFadeRange > DecelXFadeRPMRange)
-            //         curXFadeRange = DecelXFadeRPMRange;
-            // 
-            //     float d = curXFadeRange / DecelXFadeRPMRange;
-            //     decelVol = d;
-            //     accelVol = 1.0f - d;
-            // 
-            //     if ((d >= 1.0f) || (inFreq < decelStream->GetMinFrequency()))
-            //     {
-            //         // as we go closer to the min frequency of decel gin, we crossfade back into accel gin
-            //         float dclDist = (inFreq - decelStream->GetMinFrequency()) / (decelStream->GetMaxFrequency() - decelStream->GetMinFrequency());
-            //         float aclDist = 1.0f - dclDist;
-            // 
-            //         decelVol = dclDist;
-            //         accelVol = aclDist;
-            //     }
-            // }
-
 
         }
         else if (decelStream)
@@ -1277,16 +1210,29 @@ private:
             float ratePct = std::clamp(rateOfChange / rateRPMTarget, 0.0f, 1.0f);
             float rateVolCalc = std::clamp(cus_lerp(rateMinVol, 1.0f, linearToLogarithmic(ratePct, rateVolCurve)), 0.0f, 1.0f);
 
+
             if (bAccelDirection)
             {
-                float d = std::clamp(freqCurrent / curRateRPMXFadeTarget, 0.0f, 1.0f);
+                float d = (freqCurrent - freqOld) / (curRateRPMXFadeTarget - freqOld);
+                d = std::clamp(d, 0.0f, 1.0f);
+
                 rateVol = cus_lerp(rateOldVol, rateVolCalc, d);
             }
             else
             {
-                float d = std::clamp(curRateRPMXFadeTarget / freqCurrent, 0.0f, 1.0f);
+                float d = (freqOld - freqCurrent) / (freqOld - curRateRPMXFadeTarget);
+                d = std::clamp(d, 0.0f, 1.0f);
+
                 rateVol = cus_lerp(rateOldVol, rateVolCalc, d);
             }
+
+            // float d = (freqCurrent - freqOld) / (curRateRPMXFadeTarget - freqOld);
+            // d = std::clamp(d, 0.0f, 1.0f);
+            // if (!bAccelDirection)
+            //     d = 1.0f - d;
+            // //rateVol = cus_lerp(rateOldVol, rateVolCalc, d);
+            // rateVol = rateVolCalc;
+
 
             // account for the throttle
             rateVol = cus_lerp(rateVol, 1.0, throttleAmount);
@@ -1300,12 +1246,16 @@ private:
 
             if (bAccelDirection)
             {
-                float d = std::clamp(freqCurrent / curRateEqRPMXFadeTarget, 0.0f, 1.0f);
+                float d = (freqCurrent - freqOld) / (curRateEqRPMXFadeTarget - freqOld);
+                d = std::clamp(d, 0.0f, 1.0f);
+
                 rateEqAmount = cus_lerp(rateEqOldAmount, rateEqAmountCalc, d);
             }
             else
             {
-                float d = std::clamp(curRateEqRPMXFadeTarget / freqCurrent, 0.0f, 1.0f);
+                float d = (freqOld - freqCurrent) / (freqOld - curRateEqRPMXFadeTarget);
+                d = std::clamp(d, 0.0f, 1.0f);
+
                 rateEqAmount = cus_lerp(rateEqOldAmount, rateEqAmountCalc, d);
             }
 
