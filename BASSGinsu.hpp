@@ -783,6 +783,8 @@ private:
 
     float accelVol;
     float decelVol;
+    float accelOldVol;
+    float decelOldVol;
     float rateVol;
     float rateOldVol;
     float rateVolCurve;
@@ -822,6 +824,10 @@ private:
     float accelGlobalVol;
     float decelGlobalVol;
 
+    float AccelXFadeRPMRatio;
+    float AccelXFadeRPMRange;
+    float DecelXFadeRPMRatio;
+    float DecelXFadeRPMRange;
     float curRPMXFadeTarget;
     float curRPMXFadeTargetDCL;
     float XFadeDelta;
@@ -1031,6 +1037,12 @@ private:
             bAccelDirection = false;
         }
 
+        if (bOldDirection != bAccelDirection)
+        {
+            accelOldVol = accelVol;
+            decelOldVol = decelVol;
+        }
+
         if (accelStream)
         {
             accelStream->SetFrequency(inFreq);
@@ -1045,20 +1057,36 @@ private:
             {
                 rateOldVol = rateVol;
                 rateEqOldAmount = rateEqAmount;
-
+                
 
                 if (bAccelDirection)
                 {
+                    curRPMXFadeTarget = freqCurrent + AccelXFadeRPMRange;
                     curRateRPMXFadeTarget = freqCurrent + rateAccelXFadeRPMRange;
                     curRateEqRPMXFadeTarget = freqCurrent + rateAccelEqXFadeRPMRange;
                 }
                 else
                 {
+                    curRPMXFadeTarget = freqCurrent - DecelXFadeRPMRange;
                     curRateRPMXFadeTarget = freqCurrent - rateDecelXFadeRPMRange;
                     curRateEqRPMXFadeTarget = freqCurrent - rateDecelEqXFadeRPMRange;
                 }
 
                 bOldDirection = bAccelDirection;
+            }
+
+            if (bAccelDirection)
+            {
+                float d = std::clamp(freqCurrent / curRPMXFadeTarget, 0.0f, 1.0f);
+                accelVol *= d;
+                decelVol *= 1.0f - d;
+
+            }
+            else
+            {
+                float d = std::clamp(curRPMXFadeTarget / freqCurrent, 0.0f, 1.0f);
+                accelVol *= 1.0f - d;
+                decelVol *= d;
             }
 
             // TODO: fix this - both are 100% for some reason
@@ -1087,8 +1115,44 @@ private:
             //accelVol *= fadeVolACL;
             //decelVol *= fadeVolDCL;
 
-            accelVol *= linearToLogarithmic(throttleAmount, throttleCurve);
-            decelVol *= 1.0f - linearToLogarithmic(throttleAmount, throttleCurve);
+            float lT = linearToLogarithmic(throttleAmount, throttleCurve);
+            accelVol = cus_lerp(accelVol, 1.0f, lT);
+            decelVol = cus_lerp(decelVol, 0.0f, lT);
+
+
+            //decelVol *= 1.0f - linearToLogarithmic(throttleAmount, throttleCurve);
+            if (!bAccelDirection)
+            {
+                constexpr float dclFadePoint = 0.1;
+                float dclDist = (inFreq - decelStream->GetMinFrequency()) / (decelStream->GetMaxFrequency() - decelStream->GetMinFrequency());
+                if (dclDist <= dclFadePoint)
+                {
+                    float tD = (decelStream->GetMaxFrequency() - decelStream->GetMinFrequency()) * dclFadePoint;
+                    float d = (inFreq - decelStream->GetMinFrequency()) / tD;
+                    d = 1.0f - d;
+
+                    float aD = std::clamp(d, 0.0f, 1.0f);
+                    accelVol = cus_lerp(accelVol, decelVol, aD);
+
+                    if (d >= 1.0f)
+                    {
+                        float dD = std::clamp(d - 1.0f, 0.0f, 1.0f);
+                        decelVol = cus_lerp(0.0f, decelVol, 1.0f - dD);
+                    }
+                }
+
+                // as we go closer to the min frequency of decel gin, we crossfade back into accel gin
+                //float dclDist = (inFreq - decelStream->GetMinFrequency()) / (decelStream->GetMaxFrequency() - decelStream->GetMinFrequency());
+                //dclDist = std::clamp(dclDist, 0.0f, 1.0f);
+                //float aclDist = 1.0f - dclDist;
+                //if (aclDist > 0.0f)
+                //{
+                //    accelVol = cus_lerp(accelVol, decelVol, aclDist);
+                //    decelVol = cus_lerp(0.0f, decelVol, dclDist);
+                //}
+            }
+
+
 
             // if (bAccelDirection)
             //{
@@ -1653,6 +1717,8 @@ public:
 
         if (decelStream && accelStream)
         {
+            SetAccelXFadeRatio(AccelXFadeRPMRatio);
+            SetDecelXFadeRatio(DecelXFadeRPMRatio);
             SetRateAccelXFadeRatio(rateAccelXFadeRPMRatio);
             SetRateDecelXFadeRatio(rateDecelXFadeRPMRatio);
             SetRateAccelEqXFadeRatio(rateAccelEqXFadeRPMRatio);
@@ -1930,6 +1996,8 @@ public:
 
         if (decelStream)
         {
+            SetAccelXFadeRatio(AccelXFadeRPMRatio);
+            SetDecelXFadeRatio(DecelXFadeRPMRatio);
             SetRateAccelXFadeRatio(rateAccelXFadeRPMRatio);
             SetRateDecelXFadeRatio(rateDecelXFadeRPMRatio);
             SetRateAccelEqXFadeRatio(rateAccelEqXFadeRPMRatio);
@@ -1955,6 +2023,8 @@ public:
 
         if (decelStream)
         {
+            SetAccelXFadeRatio(AccelXFadeRPMRatio);
+            SetDecelXFadeRatio(DecelXFadeRPMRatio);
             SetRateAccelXFadeRatio(rateAccelXFadeRPMRatio);
             SetRateDecelXFadeRatio(rateDecelXFadeRPMRatio);
             SetRateAccelEqXFadeRatio(rateAccelEqXFadeRPMRatio);
@@ -2148,6 +2218,106 @@ public:
             return 0.0f;
 
         return rateDecelXFadeRPMRatio;
+    }
+
+    // Sets the decel crossfade range based on the RPM range divided by inRatio
+// This is the "buffer" range between accel and decel sound transitions
+    void SetDecelXFadeRatio(float inRatio)
+    {
+        if (!bLoaded && !bCurrentlyLoading)
+            return;
+
+        if (!decelStream)
+            return;
+
+        DecelXFadeRPMRatio = inRatio;
+
+        float RPMrange = freqMax - freqMin;
+        DecelXFadeRPMRange = RPMrange / DecelXFadeRPMRatio;
+    }
+
+    // Gets the decel crossfade range ratio
+    float GetDecelXFadeRatio()
+    {
+        if (!bLoaded && !bCurrentlyLoading)
+            return 0.0f;
+
+        if (!decelStream)
+            return 0.0f;
+
+        return DecelXFadeRPMRatio;
+    }
+
+    // Sets the decel crossfade range based on the RPM range divided by inRatio
+    // This is the "buffer" range between accel and decel sound transitions
+    void SetAccelXFadeRatio(float inRatio)
+    {
+        if (!bLoaded && !bCurrentlyLoading)
+            return;
+
+        if (!decelStream)
+            return;
+
+        AccelXFadeRPMRatio = inRatio;
+
+        float RPMrange = freqMax - freqMin;
+        AccelXFadeRPMRange = RPMrange / AccelXFadeRPMRatio;
+    }
+
+    // Gets the decel crossfade range ratio
+    float GetAccelXFadeRatio()
+    {
+        if (!bLoaded && !bCurrentlyLoading)
+            return 0.0f;
+
+        if (!decelStream)
+            return 0.0f;
+
+        return AccelXFadeRPMRatio;
+    }
+
+    // Sets the decel crossfade range manually
+    // This is the "buffer" range between accel and decel sound transitions
+    void SetDecelXFadeRange(float inRange)
+    {
+        if (!bLoaded && !bCurrentlyLoading)
+            return;
+
+        DecelXFadeRPMRange = inRange;
+    }
+
+    // Gets the current decel crossfade range
+    float GetDecelXFadeRange()
+    {
+        if (!bLoaded && !bCurrentlyLoading)
+            return 0.0f;
+
+        if (!decelStream)
+            return 0.0f;
+
+        return DecelXFadeRPMRange;
+    }
+
+    // Sets the accel crossfade range manually
+    // This is the "buffer" range between accel and decel sound transitions
+    void SetAccelXFadeRange(float inRange)
+    {
+        if (!bLoaded && !bCurrentlyLoading)
+            return;
+
+        AccelXFadeRPMRange = inRange;
+    }
+
+    // Gets the current accel crossfade range
+    float GetAccelXFadeRange()
+    {
+        if (!bLoaded && !bCurrentlyLoading)
+            return 0.0f;
+
+        if (!decelStream)
+            return 0.0f;
+
+        return AccelXFadeRPMRange;
     }
 
     // Sets the decel crossfade range based on the RPM range divided by inRatio
@@ -2746,6 +2916,10 @@ public:
         curRPMXFadeTarget = 0.0f;
         curRPMXFadeTargetDCL = 0.0f;
 
+        AccelXFadeRPMRatio = 50.0f; // 1/50 of the RPM range will be used as the crossfade range
+        AccelXFadeRPMRange = 0.0f;
+        DecelXFadeRPMRatio = 50.0f; // 1/50 of the RPM range will be used as the crossfade range
+        DecelXFadeRPMRange = 0.0f;
         throttleCurve = 10000.0f;
         XFadeDelta = 0.0f;
         bAccelDirection = true;
