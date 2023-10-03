@@ -831,6 +831,8 @@ private:
     float curRPMXFadeTarget;
     float XFadeDelta;
     float throttleCurve;
+    float throttleAccelMinVol;
+    float throttleDecelMinVol;
     float accelRelease;
     float decelRelease;
     float decelFadePoint;
@@ -1040,6 +1042,10 @@ private:
             bAccelDirection = false;
         }
 
+        // account for the game potentially being stupid and trying to accel a car that isn't throttling
+        if ((freqDelta2 > 0) && (throttleAmount < 0))
+            bAccelDirection = false;
+
         if (bOldDirection != bAccelDirection)
         {
             accelOldVol = accelVol;
@@ -1102,10 +1108,6 @@ private:
                 accelVol *= 1.0f - dD;
                 decelVol *= d;
             }
-
-            float lT = linearToLogarithmic(throttleAmount, throttleCurve);
-            accelVol = cus_lerp(accelVol, 1.0f, lT);
-            decelVol = cus_lerp(decelVol, 0.0f, lT);
 
             if (!bAccelDirection)
             {
@@ -1271,6 +1273,15 @@ private:
 
             // account for the throttle
             rateEqAmount = cus_lerp(rateEqAmount, 1.0, throttleAmount);
+
+            if (bAccelDirection)
+            {
+                // TODO: determine the decelVol properly, it's too loud now when you let go off the throttle!
+                float lT = linearToLogarithmic(throttleAmount, throttleCurve);
+
+                accelVol *= std::clamp(lT, throttleAccelMinVol, 1.0f);
+                decelVol *= std::clamp(1.0f - lT, throttleDecelMinVol, 1.0f);
+            }
 
             if (decelStream)
             {
@@ -2883,6 +2894,34 @@ public:
         decelFadePoint = inPct;
     }
 
+    float GetThrottleAccelMinVol()
+    {
+        if (!bLoaded && !bCurrentlyLoading)
+            return 0.0f;
+        return throttleAccelMinVol;
+    }
+
+    void SetThrottleAccelMinVol(float inVol)
+    {
+        if (!bLoaded && !bCurrentlyLoading)
+            return;
+        throttleAccelMinVol = inVol;
+    }
+
+    float GetThrottleDecelMinVol()
+    {
+        if (!bLoaded && !bCurrentlyLoading)
+            return 0.0f;
+        return throttleDecelMinVol;
+    }
+
+    void SetThrottleDecelMinVol(float inVol)
+    {
+        if (!bLoaded && !bCurrentlyLoading)
+            return;
+        throttleDecelMinVol = inVol;
+    }
+
     BASSGinsuMultiStream()
     {
         mFPSLimitMode = FrameLimiter::FPSLimitMode::FPS_ACCURATE;
@@ -2933,13 +2972,15 @@ public:
         decelGlobalVol = 1.0f;
 
         curRPMXFadeTarget = 0.0f;
-        
+
 
         AccelXFadeRPMRatio = 50.0f; // 1/50 of the RPM range will be used as the crossfade range
         AccelXFadeRPMRange = 0.0f;
         DecelXFadeRPMRatio = 50.0f; // 1/50 of the RPM range will be used as the crossfade range
         DecelXFadeRPMRange = 0.0f;
         throttleCurve = 10000.0f;
+        throttleAccelMinVol = 0.3f;
+        throttleDecelMinVol = 0.3f;
         accelRelease = 4.0f;
         decelRelease = 4.0f;
         decelFadePoint = 0.1f;
