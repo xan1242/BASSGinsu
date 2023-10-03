@@ -833,6 +833,7 @@ private:
     float throttleCurve;
     float accelRelease;
     float decelRelease;
+    float decelFadePoint;
 
 
     float redlineStart;
@@ -1108,11 +1109,10 @@ private:
 
             if (!bAccelDirection)
             {
-                constexpr float dclFadePoint = 0.1;
                 float dclDist = (inFreq - decelStream->GetMinFrequency()) / (decelStream->GetMaxFrequency() - decelStream->GetMinFrequency());
-                if (dclDist <= dclFadePoint)
+                if (dclDist <= decelFadePoint)
                 {
-                    float tD = (decelStream->GetMaxFrequency() - decelStream->GetMinFrequency()) * dclFadePoint;
+                    float tD = (decelStream->GetMaxFrequency() - decelStream->GetMinFrequency()) * decelFadePoint;
                     float d = (inFreq - decelStream->GetMinFrequency()) / tD;
                     d = 1.0f - d;
 
@@ -2869,6 +2869,20 @@ public:
         throttleCurve = in;
     }
 
+    float GetDecelFadePoint()
+    {
+        if (!bLoaded && !bCurrentlyLoading)
+            return 0.0f;
+        return decelFadePoint;
+    }
+
+    void SetDecelFadePoint(float inPct)
+    {
+        if (!bLoaded && !bCurrentlyLoading)
+            return;
+        decelFadePoint = inPct;
+    }
+
     BASSGinsuMultiStream()
     {
         mFPSLimitMode = FrameLimiter::FPSLimitMode::FPS_ACCURATE;
@@ -2928,6 +2942,7 @@ public:
         throttleCurve = 10000.0f;
         accelRelease = 4.0f;
         decelRelease = 4.0f;
+        decelFadePoint = 0.1f;
         XFadeDelta = 0.0f;
         bAccelDirection = true;
         bAccelDirectionSpeed = true;
