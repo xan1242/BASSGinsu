@@ -829,9 +829,11 @@ private:
     float DecelXFadeRPMRatio;
     float DecelXFadeRPMRange;
     float curRPMXFadeTarget;
-    float curRPMXFadeTargetDCL;
     float XFadeDelta;
     float throttleCurve;
+    float accelRelease;
+    float decelRelease;
+
 
     float redlineStart;
     float redlineVol;
@@ -1075,20 +1077,28 @@ private:
                 bOldDirection = bAccelDirection;
             }
 
-            constexpr float XFadeOverlap = 0.1;
-
             if (bAccelDirection)
             {
                 float d = (freqCurrent - freqOld) / (curRPMXFadeTarget - freqOld);
                 d = std::clamp(d, 0.0f, 1.0f);
+
+                float xfD = (curRPMXFadeTarget - freqOld) * decelRelease;
+                float dD = (freqCurrent - freqOld) / ((curRPMXFadeTarget + xfD) - freqOld);
+                dD = std::clamp(dD, 0.0f, 1.0f);
+
                 accelVol *= d;
-                decelVol *= 1.0f - d;
+                decelVol *= 1.0f - dD;
             }
             else
             {
                 float d = (freqOld - freqCurrent) / (freqOld - curRPMXFadeTarget);
                 d = std::clamp(d, 0.0f, 1.0f);
-                accelVol *= 1.0f - d;
+
+                float xfD = (freqOld - curRPMXFadeTarget) * accelRelease;
+                float dD = (freqOld - freqCurrent) / (freqOld - (curRPMXFadeTarget - xfD));
+                dD = std::clamp(dD, 0.0f, 1.0f);
+
+                accelVol *= 1.0f - dD;
                 decelVol *= d;
             }
 
@@ -2817,6 +2827,48 @@ public:
         return eqBandwidthDCL;
     }
 
+    float GetAccelRelease()
+    {
+        if (!bLoaded && !bCurrentlyLoading)
+            return 0.0f;
+        return accelRelease;
+    }
+
+    float GetDecelRelease()
+    {
+        if (!bLoaded && !bCurrentlyLoading)
+            return 0.0f;
+        return decelRelease;
+    }
+
+    void SetAccelRelease(float inPct)
+    {
+        if (!bLoaded && !bCurrentlyLoading)
+            return;
+        accelRelease = inPct;
+    }
+
+    void SetDecelRelease(float inPct)
+    {
+        if (!bLoaded && !bCurrentlyLoading)
+            return;
+        decelRelease = inPct;
+    }
+
+    float GetThrottleCurve()
+    {
+        if (!bLoaded && !bCurrentlyLoading)
+            return 0.0f;
+        return throttleCurve;
+    }
+
+    void SetThrottleCurve(float in)
+    {
+        if (!bLoaded && !bCurrentlyLoading)
+            return;
+        throttleCurve = in;
+    }
+
     BASSGinsuMultiStream()
     {
         mFPSLimitMode = FrameLimiter::FPSLimitMode::FPS_ACCURATE;
@@ -2828,6 +2880,7 @@ public:
 
         gStream = 0;
         freqDelta = 0.0f;
+        freqOld = 0.0f;
         freqDelta2 = 0.0f;
         freqOldDelta = 0.0f;
         freqCurrent = -1.0f;
@@ -2835,6 +2888,8 @@ public:
         freqMax = 0.0f;
         accelVol = 1.0f;
         decelVol = 0.0f;
+        accelOldVol = 0.0f;
+        decelOldVol = 0.0f;
 
         rateVol = 1.0f;
         rateOldVol = rateVol;
@@ -2864,13 +2919,15 @@ public:
         decelGlobalVol = 1.0f;
 
         curRPMXFadeTarget = 0.0f;
-        curRPMXFadeTargetDCL = 0.0f;
+        
 
         AccelXFadeRPMRatio = 50.0f; // 1/50 of the RPM range will be used as the crossfade range
         AccelXFadeRPMRange = 0.0f;
         DecelXFadeRPMRatio = 50.0f; // 1/50 of the RPM range will be used as the crossfade range
         DecelXFadeRPMRange = 0.0f;
         throttleCurve = 10000.0f;
+        accelRelease = 4.0f;
+        decelRelease = 4.0f;
         XFadeDelta = 0.0f;
         bAccelDirection = true;
         bAccelDirectionSpeed = true;
